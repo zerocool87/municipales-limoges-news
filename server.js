@@ -479,9 +479,13 @@ app.get('/api/news', async (req, res) => {
     });
 
     // Prefer results that explicitly mention the region (Limoges / Haute-Vienne / 87)
-    const regionRegex = /limoges|limousin|haute[- ]?vienne|\b87\b/i;
-    const combinedRegional = combined.filter(a => regionRegex.test(((a.title||'') + ' ' + (a.description||'') + ' ' + (a.source||'') + ' ' + (a.url||'')).toLowerCase()));
-    if (combinedRegional && combinedRegional.length) combined = combinedRegional;
+    // This behaviour can be toggled with the PREFER_REGION environment variable (true/false).
+    const PREFER_REGION = (process.env.PREFER_REGION || 'true') === 'true';
+    if (PREFER_REGION) {
+      const regionRegex = /limoges|limousin|haute[- ]?vienne|\b87\b/i;
+      const combinedRegional = combined.filter(a => regionRegex.test(((a.title||'') + ' ' + (a.description||'') + ' ' + (a.source||'') + ' ' + (a.url||'')).toLowerCase()));
+      if (combinedRegional && combinedRegional.length) combined = combinedRegional;
+    }
 
     const source = (newsApiArticles.length && rssArticles.length) ? 'combined' : (newsApiArticles.length ? 'newsapi' : 'rss');
     const debugObj = req.query.debug === 'true' ? Object.assign({}, newsApiDebugObj || {}, { rssCount: rssArticles.length || 0, newsCount: newsApiArticles.length || 0 }) : undefined;
