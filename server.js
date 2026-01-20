@@ -26,8 +26,6 @@ let newsApiCache = { articles: null, timestamp: 0 };
 // RSS feeds used as fallback (no API key required) — focus on French / regional sources
 // Note: some local sites no longer expose stable RSS at the previous URLs; we include a Google News search RSS as a reliable fallback.
 const RSS_FEEDS = [
-    { url: 'https://www.lemonde.fr/rss/une.xml', name: 'Le Monde' },
-    { url: 'https://www.francetvinfo.fr/titres.rss', name: 'France Info' },
   // Google News search RSS targeting Limoges municipales 2026 (reliable)
     { url: 'https://news.google.com/rss/search?q=Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr', name: 'Google News (Limoges municipales 2026)' },
     { url: 'https://france3-regions.francetvinfo.fr/nouvelle-aquitaine/rss', name: 'France 3 Nouvelle Aquitaine' },
