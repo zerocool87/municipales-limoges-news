@@ -480,6 +480,11 @@ app.get('/api/news', async (req, res) => {
       return tb - ta;
     });
 
+    // Prefer results that explicitly mention the region (Limoges / Haute-Vienne / 87)
+    const regionRegex = /limoges|limousin|haute[- ]?vienne|\b87\b/i;
+    const combinedRegional = combined.filter(a => regionRegex.test(((a.title||'') + ' ' + (a.description||'') + ' ' + (a.source||'') + ' ' + (a.url||'')).toLowerCase()));
+    if (combinedRegional && combinedRegional.length) combined = combinedRegional;
+
     const source = (newsApiArticles.length && rssArticles.length) ? 'combined' : (newsApiArticles.length ? 'newsapi' : 'rss');
     const debugObj = req.query.debug === 'true' ? Object.assign({}, newsApiDebugObj || {}, { rssCount: rssArticles.length || 0, newsCount: newsApiArticles.length || 0 }) : undefined;
     return res.json({ articles: combined.slice(0, limit), source, strict, debug: debugObj });
