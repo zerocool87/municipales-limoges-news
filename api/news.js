@@ -44,17 +44,24 @@ export default async function handler(req, res){
 
     // RSS fallback
     try{
-      let articles = await fetchRssFeeds(limit);
-      if (!articles || articles.length === 0) return res.status(200).json({ articles: [], source: 'rss', strict, note: 'No RSS articles found' });
+      const rssResult = await fetchRssFeeds(limit, debugReq);
+      let articles = Array.isArray(rssResult) ? rssResult : rssResult.items;
+      const reports = rssResult.reports || null;
+
+      if (!articles || articles.length === 0) {
+        return res.status(200).json({ articles: [], source: 'rss', strict, note: 'No RSS articles found', debug: debugReq ? { samples: debugSamples, feeds: reports } : undefined });
+      }
+
       const beforeCount = articles.length;
       if (strict) articles = articles.filter(a => isStrictMatch(a.matches, { source: a.source, url: a.url }));
       const afterCount = articles.length;
       if (strict && beforeCount > 0 && afterCount === 0){
-        const sample = (await fetchRssFeeds(limit)).slice(0,5).map(a=>({title:a.title,matches:a.matches}));
+        const sample = (await fetchRssFeeds(limit, false)).slice(0,5).map(a=>({title:a.title,matches:a.matches}));
         debugSamples = sample;
       }
-      if (!articles || articles.length === 0) return res.status(200).json({ articles: [], source: 'rss', strict, note: 'No matching RSS articles found (strict filter).', debug: debugReq ? { samples: debugSamples } : undefined });
-      return res.status(200).json({ articles: articles.slice(0, limit), source: 'rss', strict });
+
+      if (!articles || articles.length === 0) return res.status(200).json({ articles: [], source: 'rss', strict, note: 'No matching RSS articles found (strict filter).', debug: debugReq ? { samples: debugSamples, feeds: reports } : undefined });
+      return res.status(200).json({ articles: articles.slice(0, limit), source: 'rss', strict, debug: debugReq ? { feeds: reports } : undefined });
     } catch(err){
       console.error(err);
       return res.status(500).json({ articles: [], source: 'none', strict, error: 'Failed to fetch news (NewsAPI and RSS).' });
