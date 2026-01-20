@@ -28,7 +28,6 @@ let newsApiCache = { articles: null, timestamp: 0 };
 const RSS_FEEDS = [
   // Google News search RSS targeting Limoges municipales 2026 (reliable)
     { url: 'https://news.google.com/rss/search?q=Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr', name: 'Google News (Limoges municipales 2026)' },
-    { url: 'https://france3-regions.francetvinfo.fr/nouvelle-aquitaine/rss', name: 'France 3 Nouvelle Aquitaine' },
     { url: 'https://www.francebleu.fr/rss/infos.xml', name: 'France Bleu' },
     
     // Local and regional sources with strong Limoges coverage
@@ -47,7 +46,6 @@ const RSS_FEEDS = [
     { url: 'https://news.google.com/rss/search?q=site:limoges.fr+Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr', name: 'Google News (Ville de Limoges)' },
     
     // More specific regional / department feeds
-    { url: 'https://france3-regions.francetvinfo.fr/nouvelle-aquitaine/limousin/haute-vienne/rss', name: 'France 3 Nouvelle-Aquitaine (Limousin - Haute-Vienne)' },
     { url: 'https://www.francebleu.fr/rss/infos/limousin.xml', name: 'France Bleu Limousin' },
 
     // Google News searches for specific electoral coverage
