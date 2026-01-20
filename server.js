@@ -34,10 +34,10 @@ const RSS_FEEDS = [
     { url: 'https://www.francebleu.fr/rss/infos.xml', name: 'France Bleu' },
     
     // Local and regional sources with strong Limoges coverage
-    { url: 'https://www.lepopulaire.fr/limoges/feed/', name: 'Le Populaire du Centre (Limoges)' },
-    { url: 'https://www.lepopulaire.fr/haute-vienne/rss.xml', name: 'Le Populaire du Centre (Haute-Vienne)' },
-    { url: 'https://www.lamontagne.fr/limoges/rss.xml', name: 'La Montagne (Limoges)' },
-    { url: 'https://actu.fr/feeds/limoges.rss', name: 'Actu.fr (Limoges)' },
+    { url: 'https://news.google.com/rss/search?q=site:lepopulaire.fr+Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr', name: 'Google News (Le Populaire - Limoges)' },
+    { url: 'https://news.google.com/rss/search?q=site:lepopulaire.fr+Haute-Vienne+municipales+2026&hl=fr&gl=FR&ceid=FR:fr', name: 'Google News (Le Populaire - Haute-Vienne)' },
+    { url: 'https://news.google.com/rss/search?q=site:lamontagne.fr+Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr', name: 'Google News (La Montagne - Limoges)' },
+    { url: 'https://news.google.com/rss/search?q=site:actu.fr+Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr', name: 'Google News (Actu.fr - Limoges)' },
 
     // Local political / institutional feeds
     { url: 'https://87.pcf.fr/rss.xml', name: 'PCF 87 (Parti Communiste Français)' },
@@ -45,8 +45,8 @@ const RSS_FEEDS = [
     { url: 'http://republicains87.fr/feed/', name: 'Les Républicains 87 (Fédération)' },
     { url: 'https://www.haute-vienne.fr/rss.xml', name: 'Conseil Départemental Haute-Vienne' },
 
-    // Official Limoges city website
-    { url: 'https://www.limoges.fr/rss.xml', name: 'Ville de Limoges' },
+    // Official Limoges city website (replaced by Google News site search to avoid 403/404)
+    { url: 'https://news.google.com/rss/search?q=site:limoges.fr+Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr', name: 'Google News (Ville de Limoges)' },
     
     // More specific regional / department feeds
     { url: 'https://france3-regions.francetvinfo.fr/nouvelle-aquitaine/limousin/haute-vienne/rss', name: 'France 3 Nouvelle-Aquitaine (Limousin - Haute-Vienne)' },
