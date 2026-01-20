@@ -383,7 +383,13 @@ app.get('/api/news', async (req, res) => {
             matches,
             primaryMatch
           };
-        }).filter(a => isStrictMatch(a.matches, { source: a.source, url: a.url }));
+        }).filter(a => {
+          // Require strict match AND explicit regional evidence in the article (title/description/url/source)
+          const strictOk = isStrictMatch(a.matches, { source: a.source, url: a.url });
+          const evidence = ((a.title || '') + ' ' + (a.description || '') + ' ' + (a.url || '') + ' ' + (a.source || '')).toLowerCase();
+          const hasRegion = /limoges|limousin|haute[- ]?vienne|\b87\b/i.test(evidence);
+          return strictOk && hasRegion;
+        });
 
         const beforeCount = articlesAll.length;
         // In non-strict mode we only filter by the cutoff date; keep all matched articles
