@@ -300,7 +300,8 @@ async function fetchRssFeeds(limit = 20, maxAgeHours = MAX_AGE_DAYS * 24) {
         if (isNaN(pubDate)) return false;
         // ignore articles older than cutoff
         if (pubDate < cutoff) return false;
-        return (it.matches && it.matches.length > 0);
+        // require a strict Limoges-municipales match for RSS items to reduce false positives
+        return (it.matches && it.matches.length > 0 && isStrictMatch(it.matches, { source: it.source, url: it.url, publishedAt: it.publishedAt }));
       });
 
       items.push(...filtered);
