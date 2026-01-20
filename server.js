@@ -328,7 +328,8 @@ app.get('/api/news', async (req, res) => {
 
   // Try NewsAPI if key is present
   if (NEWSAPI_KEY) {
-    const q = encodeURIComponent('"municipales Limoges 2026" OR "élections municipales Limoges 2026" OR "municipales Limoges" OR "élections municipales Limoges" OR (Limoges AND (municipales OR élections OR mairie OR candidats OR 2026))');
+    // Require "Limoges" in NewsAPI queries to avoid catching national articles that do not mention the city
+    const q = encodeURIComponent('(Limoges) AND (municipales OR "élections municipales" OR mairie OR candidats OR 2026)');
     // Cap NewsAPI lookback to server limit to avoid 'parameterInvalid' errors (e.g., allowed = MAX_AGE_DAYS)
     const allowedHoursForNewsApi = MAX_AGE_DAYS * 24; // server-enforced cap
     let usedHoursForNewsApi = maxAgeHours;
