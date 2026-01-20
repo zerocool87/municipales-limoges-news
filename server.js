@@ -106,6 +106,10 @@ const ALTERNATIVE_FEEDS = {
   ]
 };
 
+// Sources / hosts to exclude from results (case-insensitive). Add domains or source names here to block.
+const BLOCKED_SOURCES = ['france info'];
+const BLOCKED_HOSTS = ['franceinfo.fr', 'francetvinfo.fr'];
+
 // Try to handle a failing feed: increment failures and, if threshold reached, attempt to add alternatives instead of only blacklisting
 async function handleFeedFailure(url, name, reason){
   const count = (feedFailures.get(url) || 0) + 1;
@@ -437,7 +441,14 @@ app.get('/api/news', async (req, res) => {
     if (!articles || articles.length === 0) return res.json({ articles: [], source: 'rss', strict, note: 'No RSS articles found' });
 
     // Apply strict Limoges-municipales filter server-side
-    const filteredRss = articles.filter(a => isStrictMatch(a.matches, { source: a.source, url: a.url }));
+    const filteredRss = articles.filter(a => {
+      if(!isStrictMatch(a.matches, { source: a.source, url: a.url })) return false;
+      const s = (a.source || '').toLowerCase();
+      const u = (a.url || '').toLowerCase();
+      for(const b of BLOCKED_SOURCES) if(s.includes(b)) return false;
+      for(const h of BLOCKED_HOSTS) if(u.includes(h)) return false;
+      return true;
+    });
 
     if (!filteredRss || filteredRss.length === 0) return res.json({ articles: [], source: 'rss', strict, note: 'No matching RSS articles found.', debug: req.query.debug === 'true' ? { samples: debugSamples } : undefined });
 
