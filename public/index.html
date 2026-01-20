@@ -3,13 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>10 News du jour - IA</title>
+  <title>20 dernières news — Municipales Limoges 2026</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
   <main>
-    <h1>📰 20 premières news — Municipales Limoges 2026</h1>
-    <p class="subtitle">Dernière mise à jour: <span id="updated">–</span> • <small class="info">Articles ≤ 2 mois, triés du plus récent au moins récent</small></p>
+    <h1>📰 20 dernières news — Municipales Limoges 2026</h1>
+    <p class="subtitle">Dernière mise à jour: <span id="updated">–</span> • <small class="info">Articles ≤ 1 mois, triés du plus récent au moins récent</small></p>
+
+    <div id="newsapi-banner" class="banner" role="status" aria-live="polite" hidden>
+      <span id="newsapi-banner-text"></span>
+      <button id="newsapi-banner-close" aria-label="Fermer">✖</button>
+    </div>
+
     <div class="controls">
       <button id="refresh">🔄 Rafraîchir</button>
       <select id="lang">
@@ -35,21 +41,56 @@
     const refreshBtn = document.getElementById('refresh');
     const langEl = document.getElementById('lang');
 
-    async function loadNews() {
+    function showToast(msg, timeout = 3000){
+      try{
+        const t = document.createElement('div');
+        t.className = 'toast';
+        t.textContent = msg;
+        document.body.appendChild(t);
+        // allow CSS transition
+        setTimeout(()=> t.classList.add('visible'), 10);
+        setTimeout(()=>{ t.classList.remove('visible'); setTimeout(()=> t.remove(), 400); }, timeout);
+      }catch(e){ console.warn('showToast failed', e && e.message ? e.message : e); }
+    }
+
+    async function loadNews(opts = {}) {
+      const notify = opts.notify === true;
       statusEl.textContent = 'Chargement…';
       articlesEl.innerHTML = '';
       const lang = langEl.value;
       const langParam = lang === 'all' ? '' : `&lang=${lang}`;
 
       try {
-        const res = await fetch(`/api/news?limit=20`);
+        const res = await fetch(`/api/news?limit=50${langParam}`);
         if (!res.ok) throw new Error('Erreur réseau');
         const json = await res.json();
         const articles = json.articles || [];
 
+        // If server capped the NewsAPI window, inform the user with a toast and a persistent banner
+        try{
+          if(json.debug && json.debug.newsApiCapped){
+            const usedDays = Math.round((json.debug.usedHoursForNewsApi || 720) / 24);
+            const requested = json.debug.requestedHours ? Math.round(json.debug.requestedHours/24) : null;
+            const note = requested && requested !== usedDays ? `Recherche NewsAPI limitée à ${usedDays} jours (demandé: ${requested} jours)` : `Recherche NewsAPI limitée à ${usedDays} jours`;
+            showToast(note, 5000);
+
+            // show persistent banner
+            try{
+              const banner = document.getElementById('newsapi-banner');
+              const bannerText = document.getElementById('newsapi-banner-text');
+              if(banner && bannerText){
+                bannerText.textContent = note + ' — Les résultats peuvent provenir du fallback RSS.';
+                banner.hidden = false;
+                banner.classList.add('visible');
+              }
+            }catch(e){ console.warn('banner show failed', e && e.message ? e.message : e); }
+          }
+        }catch(e){ console.warn('debug toast failed', e && e.message ? e.message : e); }
+
         if (articles.length === 0) {
           statusEl.textContent = "Aucun article trouvé pour les municipales Limoges 2026.";
           updatedEl.textContent = new Date().toLocaleString();
+          if (notify) showToast('Recherche mise à jour — 0 articles');
           return;
         }
 
@@ -64,18 +105,24 @@
           setTimeout(()=>{ statusEl.textContent = '' }, 3500);
         }
 
-        // render (apply any active filter)
-        applyFilter();
+        // render (apply any active filter) and report visible count
+        const visible = applyFilter();
+        if (notify) showToast(`Recherche mise à jour — ${visible} article(s) visibles`);
       } catch (err) {
         console.error(err);
         statusEl.textContent = 'Impossible de charger les news.';
+        if (notify) showToast('Erreur: impossible de mettre à jour la recherche');
       }
     }
 
     refreshBtn.addEventListener('click', loadNews);
 
-    // Autoload
-    loadNews();
+
+    // Autoload: sync removed tags first, then fetch news
+    (async function init(){
+      await syncRemovedTagsFromServer();
+      await loadNews();
+    })();
 
     // Theme selector: persist preference in localStorage and apply
     const themeEl = document.getElementById('theme');
@@ -100,6 +147,40 @@
     let currentArticles = [];
     let activeFilter = null;
     const activeFilterEl = document.getElementById('active-filter');
+    // removedTags UI element removed; placeholder variable omitted
+    const removedListEl = document.getElementById('removed-list');
+
+    // load removed tags from localStorage (store as raw labels) and sync with server
+    const removedTags = new Set(JSON.parse(localStorage.getItem('removedTags') || '[]'));
+    function saveRemovedTags(){ try{ localStorage.setItem('removedTags', JSON.stringify(Array.from(removedTags))); }catch(e){} }
+    function removedTagsHas(label){ return removedTags.has(label) || removedTags.has(normalizeString(label)); }
+
+    // fetch server-side stored removed tags and merge (global persistence)
+    async function syncRemovedTagsFromServer(){
+      try{
+        const r = await fetch('/api/filters');
+        if(r.ok){
+          const j = await r.json();
+          // replace local removed tags with server authoritative list (start from clean state)
+          removedTags.clear();
+          (j.removed || []).forEach(t => removedTags.add(t));
+          saveRemovedTags();
+          renderRemovedTags();
+          // ensure any active filter is cleared when server-side list changes
+          activeFilter = null;
+          applyFilter();
+        }
+      }catch(e){ console.warn('Could not sync removed tags from server', e && e.message ? e.message : e); }
+    }
+    // call sync on init
+    syncRemovedTagsFromServer();
+
+    // persist a change to server (best-effort)
+    async function persistTag(action, match){
+      try{
+        await fetch('/api/filters', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, tag: match }) });
+      }catch(e){ console.warn('Persist failed', e && e.message ? e.message : e); }
+    }
 
     // initialize active filter UI (use style.display and event delegation)
     if(activeFilterEl){
@@ -113,10 +194,14 @@
       });
     }
 
+    // `removed-tags` UI removed: no-op renderer kept for compatibility
+    function renderRemovedTags(){ /* intentionally no-op */ }
+
     function renderArticles(list){
       articlesEl.innerHTML = '';
       if(!list || list.length === 0){
         statusEl.textContent = 'Aucun article visible avec le filtre actuel.';
+        renderRemovedTags();
         return;
       }
       statusEl.textContent = '';
@@ -124,8 +209,10 @@
         const li = document.createElement('li');
         li.className = 'article';
         const matchesHtml = (a.matches && a.matches.length) ? a.matches.map(m => {
-          const cls = (a.primaryMatch && normalizeString(m) === normalizeString(a.primaryMatch)) ? 'tag primary' : 'tag';
-          return `<span class="${cls}" data-match="${escapeHtml(m)}">${escapeHtml(m)}</span>`;
+          const isRemoved = removedTagsHas(m);
+          const cls = isRemoved ? 'tag removed' : ((a.primaryMatch && normalizeString(m) === normalizeString(a.primaryMatch)) ? 'tag primary' : 'tag');
+          const label = escapeHtml(m);
+          return `<span class="${cls}" data-match="${escapeHtml(m)}"><span class="label">${label}</span></span>`;
         }).join(' ') : '';
 
         li.innerHTML = `
@@ -136,34 +223,52 @@
         `;
         articlesEl.appendChild(li);
       }
+      renderRemovedTags();
     }
 
     function applyFilter(){
+      let renderedList = [];
       if(!activeFilter){
         renderArticles(currentArticles);
+        renderedList = currentArticles;
         if(activeFilterEl){ activeFilterEl.style.display = 'none'; activeFilterEl.innerHTML = ''; }
-        return;
+      } else {
+        const filtered = currentArticles.filter(a => (a.matches || []).some(m => normalizeString(m) === normalizeString(activeFilter)));
+        if(activeFilterEl){
+          activeFilterEl.style.display = 'inline-block';
+          activeFilterEl.innerHTML = `Filtre: <strong>${escapeHtml(activeFilter)}</strong> — ${filtered.length} article(s) <button id="clear-filter">✖</button>`;
+        }
+        const sliced = filtered.slice(0,50);
+        renderArticles(sliced);
+        renderedList = sliced;
       }
-      const filtered = currentArticles.filter(a => (a.matches || []).some(m => normalizeString(m) === normalizeString(activeFilter)));
-      if(activeFilterEl){
-        activeFilterEl.style.display = 'inline-block';
-        activeFilterEl.innerHTML = `Filtre: <strong>${escapeHtml(activeFilter)}</strong> — ${filtered.length} article(s) <button id="clear-filter">✖</button>`;
-      }
-      renderArticles(filtered.slice(0,20));
+      return renderedList.length;
     }
+
+    // removeTag removed: tags can no longer be deleted from articles in the UI.
+    // restoreTag / restoreAll removed from UI: operations are no longer available via the client UI.
 
     // utility: normalize for comparison and escape for HTML injection safety
     function normalizeString(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
     function escapeHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-    // tag click handler (delegation)
+    // tag click handler (delegation) — removed/restore actions hidden; click applies filter
     articlesEl.addEventListener('click', (e)=>{
       const t = e.target;
-      if(t.classList.contains('tag')){
-        activeFilter = t.getAttribute('data-match');
-        applyFilter();
-      }
+      const tagSpan = t.closest('.tag');
+      if(!tagSpan) return;
+      const match = tagSpan.getAttribute('data-match');
+      activeFilter = match; applyFilter();
     });
+
+    // Restore-all UI removed — no button handler needed.
+
+    // Quick Limoges filter removed from UI.
+    // NewsAPI banner dismissal
+    const bannerClose = document.getElementById('newsapi-banner-close');
+    if(bannerClose){
+      bannerClose.addEventListener('click', (e)=>{ e.preventDefault(); try{ const b = document.getElementById('newsapi-banner'); if(b){ b.hidden = true; b.classList.remove('visible'); } }catch(_){}});
+    }
   </script>
 </body>
 </html>

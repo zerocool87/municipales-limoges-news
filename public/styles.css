@@ -32,7 +32,8 @@ body.light{
 html,body{height:100%}
 body{font-family:'Roboto Condensed', system-ui, -apple-system, 'Segoe UI', Roboto, Arial; color:var(--text); background:var(--bg-accent), var(--bg); margin:0; padding:2rem; transition: background .25s ease, color .2s ease}
 
-main{max-width:980px;margin:0 auto;background:transparent}
+main{max-width:980px;margin:0 auto;background:transparent;padding-bottom:4rem}
+#articles{padding-bottom:1rem}
 
 h1{
   margin:0 0 .25rem;
@@ -104,6 +105,10 @@ body.light .article .meta::before{box-shadow:0 0 6px rgba(255,59,59,0.04), 0 0 1
 .tag.primary{outline:2px solid rgba(3,50,100,0.18);box-shadow:0 8px 22px rgba(3,50,100,0.18)}
 body.light .tag{background:linear-gradient(90deg,#084a9e,#6ea3ff); color:#fff; box-shadow:none}
 
+/* Removed / restore UI for tags */
+.tag.removed{opacity:0.6;background:linear-gradient(90deg,#222631,#2b3142);color:var(--muted);border-style:dashed}
+
+
 .active-filter{display:inline-block;margin-left:1rem;padding:.35rem .6rem;border-radius:999px;background:rgba(255,255,255,0.04);color:var(--text);border:1px solid var(--glass-border)}
 .active-filter button{background:transparent;border:0;color:var(--muted);margin-left:.6rem;cursor:pointer}
 /* small flicker animation for headings */
@@ -122,5 +127,18 @@ h1{animation: flicker 3s linear infinite}
   body{padding:1rem}
   h1{font-size:1.4rem}
   .article{padding:.9rem}
+  main{padding-bottom:5rem}
 }
+
+/* Persistent NewsAPI banner */
+.banner{display:none;padding:.6rem 1rem;border-radius:8px;background:linear-gradient(90deg,rgba(255,45,166,0.06),rgba(0,240,255,0.02));color:var(--text);border:1px solid rgba(0,240,255,0.12);margin-bottom:1rem;position:relative}
+.banner.visible{display:block}
+#newsapi-banner-text{font-weight:700}
+#newsapi-banner-close{position:absolute;right:.6rem;top:.5rem;border:0;background:transparent;color:var(--muted);cursor:pointer;font-weight:700;padding:.1rem .4rem}
+#newsapi-banner-close:hover{color:var(--neon-pink)}
+
+/* Toast notification */
+.toast{position:fixed;right:1rem;bottom:1rem;background:rgba(3,15,30,0.9);color:var(--text);padding:.6rem .9rem;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.5);opacity:0;transform:translateY(8px);transition:opacity .18s ease, transform .18s ease;z-index:9999}
+.toast.visible{opacity:1;transform:translateY(0)}
+body.light .toast{background:rgba(255,255,255,0.95);color:var(--text);box-shadow:0 8px 24px rgba(0,0,0,0.06)}
 

@@ -1,11 +1,12 @@
-import { getMatches, isStrictMatch, fetchRssFeeds } from '../lib/news.js';
+import { getMatches, fetchRssFeeds, readRemovedTags, normalizeTextSimple } from '../lib/news.js';
 import fetch from 'node-fetch';
 
 export default async function handler(req, res){
   try{
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 50);
-    const strict = url.searchParams.get('strict') === 'false' ? false : true;
+    // strict mode removed — always non-strict
+    const strict = false;
     const debugReq = url.searchParams.get('debug') === 'true';
     let debugSamples = null;
     const NEWSAPI_KEY = process.env.NEWSAPI_KEY;
@@ -21,21 +22,29 @@ export default async function handler(req, res){
           const cutoff = new Date(Date.now() - 60 * 24 * 3600 * 1000);
           const articlesAll = (data.articles || []).map(a=>{
             const title = a.title; const description = a.description;
-            const matches = getMatches((title || '') + ' ' + (description || ''));
+            let matches = getMatches((title || '') + ' ' + (description || ''));
+            // removed tags filtering moved outside map (cannot use await inside map callback)
             const primaryMatch = matches.length ? matches[0] : null;
             return { title, description, url: a.url, source: a.source?.name, publishedAt: a.publishedAt, matches, primaryMatch };
           }).filter(a => a.matches && a.matches.length > 0);
+
+          // apply global removed tags filter (now outside the map)
+          try{
+            const removedArr = (await readRemovedTags()).map(r => normalizeTextSimple(r));
+            articlesAll.forEach(a => {
+              a.matches = a.matches.filter(m => {
+                const nm = normalizeTextSimple(m);
+                return !removedArr.some(rn => nm.includes(rn) || rn.includes(nm));
+              });
+            });
+          }catch(e){ console.warn('removed tags filtering failed', e); }
 
           const articles = articlesAll.filter(a => {
             if (!a.publishedAt) return false;
             const pd = new Date(a.publishedAt); if (isNaN(pd)) return false;
             if (pd < cutoff) return false;
-            return !strict || isStrictMatch(a.matches, { source: a.source, url: a.url });
+            return true; // non-strict: accept all matched articles within cutoff
           }).sort((a,b) => new Date(b.publishedAt) - new Date(a.publishedAt));
-
-          if (strict && articlesAll.length > 0 && articles.length === 0){
-            debugSamples = articlesAll.slice(0,5).map(a=>({title:a.title,matches:a.matches}));
-          }
 
           if (articles.length > 0) return res.status(200).json({ articles: articles.slice(0, limit), source: 'newsapi', strict, debug: debugReq ? { samples: debugSamples } : undefined });
         }
@@ -53,14 +62,9 @@ export default async function handler(req, res){
       }
 
       const beforeCount = articles.length;
-      if (strict) articles = articles.filter(a => isStrictMatch(a.matches, { source: a.source, url: a.url }));
-      const afterCount = articles.length;
-      if (strict && beforeCount > 0 && afterCount === 0){
-        const sample = (await fetchRssFeeds(limit, false)).slice(0,5).map(a=>({title:a.title,matches:a.matches}));
-        debugSamples = sample;
-      }
+      const afterCount = beforeCount; // no strict filtering applied
 
-      if (!articles || articles.length === 0) return res.status(200).json({ articles: [], source: 'rss', strict, note: 'No matching RSS articles found (strict filter).', debug: debugReq ? { samples: debugSamples, feeds: reports } : undefined });
+      if (!articles || articles.length === 0) return res.status(200).json({ articles: [], source: 'rss', strict, note: 'No matching RSS articles found.', debug: debugReq ? { samples: debugSamples, feeds: reports } : undefined });
       return res.status(200).json({ articles: articles.slice(0, limit), source: 'rss', strict, debug: debugReq ? { feeds: reports } : undefined });
     } catch(err){
       console.error(err);
