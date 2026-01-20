@@ -1,0 +1,15 @@
+body{font-family:system-ui,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,#071021,#041018);color:#e6f7ff;padding:1.5rem}
+.admin{max-width:980px;margin:0 auto}
+h1{font-family:Orbitron,monospace;color:#ff2da6}
+.panel{background:rgba(255,255,255,0.03);padding:1rem;border-radius:8px;margin-top:1rem;border:1px solid rgba(255,255,255,0.04)}
+.controls{display:flex;gap:.5rem;align-items:center}
+input{padding:.5rem;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text,#e6f7ff)}
+button{padding:.5rem .8rem;border-radius:6px;border:0;background:#00f0ff;color:#041018;font-weight:700;cursor:pointer}
+#feeds-list li, #blacklisted-list li{display:flex;gap:1rem;align-items:flex-start;padding:0.8rem;border-bottom:1px dashed rgba(255,255,255,0.03)}
+.feed-actions{display:flex;gap:.5rem;align-items:center;margin-left:0}
+.feed-actions button{margin-left:.5rem;background:transparent;color:#ff2da6;border:1px solid rgba(255,45,166,0.12);padding:.35rem .6rem;border-radius:6px;font-size:.9rem}
+.msg{color:#9aa3b2;margin-top:.5rem}
+.feed-sample{margin-top:.6rem;padding:.75rem;border-radius:8px;background:rgba(255,255,255,0.02);font-size:.95rem;border:1px solid rgba(255,255,255,0.02)}
+.feed-sample .item{margin-bottom:.5rem}
+.feed-sample .mini-tag{display:inline-block;margin-left:.35rem;padding:.18rem .45rem;border-radius:6px;background:rgba(0,240,255,0.06);color:#00f0ff;font-weight:700;font-size:.82rem}
+@media (max-width:720px){#feeds-list li, #blacklisted-list li{flex-direction:column;align-items:stretch}.feed-actions{justify-content:flex-end}.feed-actions button{font-size:.85rem;padding:.4rem .6rem}}

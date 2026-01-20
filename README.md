@@ -44,6 +44,14 @@ npm start
 - Si vous voulez des articles en anglais, éditez `server.js` et retirez `&language=fr` ou remplacez par `en`.
 - Limite par défaut: 10 articles (modifiable via le paramètre `limit` de `/api/news`).
 
+## GitHub Pages
+Le front est prêt pour être publié sur **GitHub Pages** depuis le dossier `docs/`. Pour activer :
+1. Pousser la branche `main` (déjà fait).
+2. Aller dans **Settings → Pages** et sélectionner **Branch: main** et **Folder: /docs**.
+3. Après activation, le site sera disponible à `https://<USER>.github.io/municipales-limoges-news/` (remplace `<USER>` par ton nom d'utilisateur GitHub).
+
+Remarque : GitHub Pages sert seulement le front statique; l'API Node doit être déployée séparément (Railway/Render/Heroku) pour être accessible publiquement.
+
 ---
 
 Si vous voulez, je peux aussi ajouter le déploiement sur Heroku / Railway ou remplacer NewsAPI par une solution RSS gratuite.
