@@ -177,8 +177,8 @@ const KEYWORDS = [
   'sondage','résultats','bulletin','suffrage',
   'mairie','conseil municipal','dépôt candidature',
   
-  // Location terms (strict: only haute-vienne and variants)
-  'haute-vienne','haute vienne','hautevienne','limousin',
+  // Location terms (strict: include Limoges, Haute-Vienne and variants)
+  'limoges','haute-vienne','haute vienne','hautevienne','limousin',
   
   // Year
   '2026',
