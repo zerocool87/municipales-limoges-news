@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>10 News du jour - IA</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <main>
+    <h1>📰 20 premières news — Municipales Limoges 2026</h1>
+    <p class="subtitle">Dernière mise à jour: <span id="updated">–</span> • <small class="info">Articles ≤ 2 mois, triés du plus récent au moins récent</small></p>
+    <div class="controls">
+      <button id="refresh">🔄 Rafraîchir</button>
+      <select id="lang">
+        <option value="fr">Français</option>
+        <option value="en">Anglais</option>
+        <option value="all">Toutes langues</option>
+      </select>
+      <label for="theme" class="visually-hidden">Thème</label>
+      <select id="theme" aria-label="Sélecteur de thème">
+        <option value="dark">Sombre</option>
+        <option value="light">Clair</option>
+      </select>
+      <div id="active-filter" class="active-filter" hidden></div>
+    </div>
+    <div id="status">Chargement des dernières news municipales (Limoges 2026)...</div>
+    <ul id="articles"></ul>
+  </main>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const articlesEl = document.getElementById('articles');
+    const updatedEl = document.getElementById('updated');
+    const refreshBtn = document.getElementById('refresh');
+    const langEl = document.getElementById('lang');
+
+    async function loadNews() {
+      statusEl.textContent = 'Chargement…';
+      articlesEl.innerHTML = '';
+      const lang = langEl.value;
+      const langParam = lang === 'all' ? '' : `&lang=${lang}`;
+
+      try {
+        const res = await fetch(`/api/news?limit=20`);
+        if (!res.ok) throw new Error('Erreur réseau');
+        const json = await res.json();
+        const articles = json.articles || [];
+
+        if (articles.length === 0) {
+          statusEl.textContent = "Aucun article trouvé pour les municipales Limoges 2026.";
+          updatedEl.textContent = new Date().toLocaleString();
+          return;
+        }
+
+        // store current articles and render
+        currentArticles = articles;
+
+        statusEl.textContent = '';
+        updatedEl.textContent = new Date().toLocaleString();
+        if (json.source) {
+          // show source and count briefly
+          statusEl.textContent = `Source: ${json.source} — ${articles.length} article(s)`;
+          setTimeout(()=>{ statusEl.textContent = '' }, 3500);
+        }
+
+        // render (apply any active filter)
+        applyFilter();
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = 'Impossible de charger les news.';
+      }
+    }
+
+    refreshBtn.addEventListener('click', loadNews);
+
+    // Autoload
+    loadNews();
+
+    // Theme selector: persist preference in localStorage and apply
+    const themeEl = document.getElementById('theme');
+    function applyTheme(theme){
+      if(theme === 'light'){
+        document.body.classList.add('light');
+      } else {
+        document.body.classList.remove('light');
+      }
+      try{ localStorage.setItem('theme', theme); }catch(e){}
+    }
+
+    // initialize
+    const savedTheme = (() => {
+      try{ return localStorage.getItem('theme'); }catch(e){ return null }
+    })() || (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    applyTheme(savedTheme);
+    if(themeEl) themeEl.value = savedTheme;
+    if(themeEl) themeEl.addEventListener('change', (e)=> applyTheme(e.target.value));
+
+    // Filtering and rendering helpers
+    let currentArticles = [];
+    let activeFilter = null;
+    const activeFilterEl = document.getElementById('active-filter');
+
+    // initialize active filter UI (use style.display and event delegation)
+    if(activeFilterEl){
+      activeFilterEl.style.display = 'none';
+      activeFilterEl.addEventListener('click', (e) => {
+        const t = e.target;
+        if(t && t.id === 'clear-filter'){
+          activeFilter = null;
+          applyFilter();
+        }
+      });
+    }
+
+    function renderArticles(list){
+      articlesEl.innerHTML = '';
+      if(!list || list.length === 0){
+        statusEl.textContent = 'Aucun article visible avec le filtre actuel.';
+        return;
+      }
+      statusEl.textContent = '';
+      for(const a of list){
+        const li = document.createElement('li');
+        li.className = 'article';
+        const matchesHtml = (a.matches && a.matches.length) ? a.matches.map(m => {
+          const cls = (a.primaryMatch && normalizeString(m) === normalizeString(a.primaryMatch)) ? 'tag primary' : 'tag';
+          return `<span class="${cls}" data-match="${escapeHtml(m)}">${escapeHtml(m)}</span>`;
+        }).join(' ') : '';
+
+        li.innerHTML = `
+          <a class="title" href="${a.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(a.title)}</a>
+          <div class="meta">${escapeHtml(a.source || '')} — ${a.publishedAt ? new Date(a.publishedAt).toLocaleString() : ''}</div>
+          ${matchesHtml ? `<div class="matches">${matchesHtml}</div>` : ''}
+          <p class="desc">${escapeHtml(a.description || '')}</p>
+        `;
+        articlesEl.appendChild(li);
+      }
+    }
+
+    function applyFilter(){
+      if(!activeFilter){
+        renderArticles(currentArticles);
+        if(activeFilterEl){ activeFilterEl.style.display = 'none'; activeFilterEl.innerHTML = ''; }
+        return;
+      }
+      const filtered = currentArticles.filter(a => (a.matches || []).some(m => normalizeString(m) === normalizeString(activeFilter)));
+      if(activeFilterEl){
+        activeFilterEl.style.display = 'inline-block';
+        activeFilterEl.innerHTML = `Filtre: <strong>${escapeHtml(activeFilter)}</strong> — ${filtered.length} article(s) <button id="clear-filter">✖</button>`;
+      }
+      renderArticles(filtered.slice(0,20));
+    }
+
+    // utility: normalize for comparison and escape for HTML injection safety
+    function normalizeString(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+    function escapeHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    // tag click handler (delegation)
+    articlesEl.addEventListener('click', (e)=>{
+      const t = e.target;
+      if(t.classList.contains('tag')){
+        activeFilter = t.getAttribute('data-match');
+        applyFilter();
+      }
+    });
+  </script>
+</body>
+</html>

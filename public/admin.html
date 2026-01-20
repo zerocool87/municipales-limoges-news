@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin feeds — AI News</title>
+  <link rel="stylesheet" href="/admin.css" />
+</head>
+<body>
+  <main class="admin">
+    <h1>🔧 Gestion des flux RSS</h1>
+    <div class="controls">
+      <label>Admin token <input id="token" placeholder="x-admin-token" /></label>
+      <button id="refresh">🔄 Rafraîchir</button>
+    </div>
+
+    <section class="panel">
+      <h2>Ajouter un flux</h2>
+      <div class="form">
+        <input id="add-url" placeholder="URL du flux (ex: https://exemple.com/rss)" />
+        <input id="add-name" placeholder="Nom (optionnel)" />
+        <button id="add-btn">Ajouter</button>
+      </div>
+      <div id="add-msg" class="msg"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Feeds</h2>
+      <ul id="feeds-list"></ul>
+    </section>
+
+    <section class="panel">
+      <h2>Blacklisted</h2>
+      <ul id="blacklisted-list"></ul>
+    </section>
+
+    <section class="panel">
+      <h2>Failures</h2>
+      <pre id="failures"></pre>
+    </section>
+
+    <section class="panel">
+      <h2>Alternatives</h2>
+      <pre id="alternatives"></pre>
+    </section>
+
+    <div class="notes">Note: si vous avez défini <code>ADMIN_TOKEN</code> dans votre `.env`, renseignez le token ci-dessus et cliquez sur <em>Rafraîchir</em>.</div>
+  </main>
+
+  <script src="/admin.js"></script>
+</body>
+</html>
