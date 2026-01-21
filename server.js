@@ -376,6 +376,19 @@ app.get('/api/news', async (req, res) => {
   // 6b. Deduplicate near-duplicate titles across sources (e.g., Radio France vs France Bleu)
   function wordsOfTitle(t){ return (titleKey(t)||'').split(/\s+/).filter(Boolean); }
   function isSimilarTitle(a, b){
+    // if titles mention different candidates, do not treat as similar
+    const candidateNames = ['damien maudet','maudet','émile roger lombertie','emile roger lombertie','lombertie','emile roger','yoann balestrat','balestrat','hervé beaudet','herve beaudet','beaudet'];
+    function findCandidatesInTitle(t){
+      const s = (t || '').toLowerCase();
+      return candidateNames.filter(c => s.includes(c));
+    }
+    const ca = findCandidatesInTitle(a.title);
+    const cb = findCandidatesInTitle(b.title);
+    if (ca.length > 0 && cb.length > 0){
+      // if both mention candidates and they differ, consider distinct
+      if (!ca.some(x => cb.includes(x))) return false;
+    }
+
     const wa = new Set(wordsOfTitle(a.title || ''));
     const wb = new Set(wordsOfTitle(b.title || ''));
     if (wa.size === 0 || wb.size === 0) return false;
