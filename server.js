@@ -410,7 +410,59 @@ app.get('/api/news', async (req, res) => {
     allArticles = allArticles.filter(a => isStrictMatch(a.matches || [], { source: a.source, url: a.url }));
   }
 
-  // 6. Deduplicate by URL
+  // 6. Deduplicate similar articles by title (and still by URL afterwards)
+  // Use normalized titles + token overlap to detect near-duplicates and prefer
+  // non-Google-News URLs, longer descriptions, or more matches when merging.
+  function titleKey(title){ return (normalizeText(title)||'').replace(/[^a-z0-9]+/g,' ').trim(); }
+  function wordSet(s){ return new Set((s||'').split(/\s+/).filter(w => w.length>2)); }
+  function isSimilarTitle(a,b){
+    const ka = titleKey(a||'');
+    const kb = titleKey(b||'');
+    if(!ka || !kb) return false;
+    if(ka === kb) return true;
+    if(ka.includes(kb) || kb.includes(ka)) return true;
+    const sa = wordSet(ka);
+    const sb = wordSet(kb);
+    const inter = [...sa].filter(x=>sb.has(x)).length;
+    const union = new Set([...sa,...sb]).size || 1;
+    const overlap = inter / union;
+    return overlap >= 0.65; // threshold (tunable)
+  }
+  function preferArticle(a,b){
+    // prefer non-google news wrapper when possible
+    const ga = (a.url||'').includes('news.google.com');
+    const gb = (b.url||'').includes('news.google.com');
+    if(ga && !gb) return b;
+    if(gb && !ga) return a;
+    // prefer longer description
+    const da = (a.description||'').length;
+    const db = (b.description||'').length;
+    if(da !== db) return da > db ? a : b;
+    // prefer more matches
+    const ma = (a.matches||[]).length;
+    const mb = (b.matches||[]).length;
+    if(ma !== mb) return ma > mb ? a : b;
+    // otherwise prefer the most recent
+    const pa = a.publishedAt ? new Date(a.publishedAt) : new Date(0);
+    const pb = b.publishedAt ? new Date(b.publishedAt) : new Date(0);
+    return pa >= pb ? a : b;
+  }
+
+  const deduped = [];
+  for(const a of allArticles){
+    let merged = false;
+    for(let i = 0; i < deduped.length; ++i){
+      if(isSimilarTitle(a.title, deduped[i].title)){
+        deduped[i] = preferArticle(deduped[i], a);
+        merged = true;
+        break;
+      }
+    }
+    if(!merged) deduped.push(a);
+  }
+  allArticles = deduped;
+
+  // still deduplicate by exact URL to remove strict duplicates
   const seen = new Set();
   allArticles = allArticles.filter(a => {
     if (!a.url) return true;
