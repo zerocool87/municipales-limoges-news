@@ -238,7 +238,7 @@ function isStrictMatch(matches, context = {}){
   const src = (context.source || '') || '';
   const url = (context.url || '') || '';
   const srcNorm = normalizeText(src + ' ' + url);
-  const townKeys = ['saint junien','panazol','couzeix','malemort','condat-sur-vienne'];
+  const townKeys = ['saint junien','saint-junien','panazol','couzeix','malemort','condat-sur-vienne'];
   const hasRegionInSource = srcNorm.includes('limoges') || srcNorm.includes('limousin') || srcNorm.includes('haute vienne') || srcNorm.includes('haute-vienne') || srcNorm.includes('87') || townKeys.some(t => srcNorm.includes(t));
   if (hasRegionInSource) hasLimoges = true;
 
