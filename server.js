@@ -456,7 +456,7 @@ app.get('/api/news', async (req, res) => {
 
     // Merge NewsAPI (if any) + RSS, deduplicating by URL (fallback key: title+source)
     const seen = new Set();
-    const combined = [];
+    let combined = [];
     function keyFor(a){
       if(a.url) return a.url.split('#')[0];
       return `${(a.title||'').slice(0,140)}|${(a.source||'').slice(0,80)}`;
