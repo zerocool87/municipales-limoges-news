@@ -1,0 +1,7 @@
+nohup: les entrées sont ignorées
+Server running on http://localhost:3000
+Failed to fetch feed https://www.francebleu.fr/rss/infos/limousin.xml Status code 404 (failure 1/3)
+Failed to fetch feed https://www.francebleu.fr/rss/infos/limousin.xml Status code 404 (failure 2/3)
+Failed to fetch feed https://www.francebleu.fr/rss/infos/limousin.xml Status code 404 (failure 3/3)
+Added alternative feed for francebleu.fr: https://news.google.com/rss/search?q=site:francebleu.fr+Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr
+Replaced https://www.francebleu.fr/rss/infos/limousin.xml with 1 alternative feed(s).

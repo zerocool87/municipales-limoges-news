@@ -194,19 +194,30 @@ function isStrictMatch(matches, context = {}){
     'ile de france', 'ile-de-france', 'paris', 'lyon', 'marseille', 'toulouse', 'bordeaux', 'nantes',
     'strasbourg', 'montpellier', 'nice', 'rennes', 'lille', 'reims',
     // Départements limitrophes mais hors Haute-Vienne
-    'dordogne', '24420', '24', // Dordogne
-    'correze', '19', 'tulle', 'brive', // Corrèze
-    'creuse', '23', 'gueret', // Creuse
-    'charente', '16', 'angouleme', // Charente
-    'vienne', '86', 'poitiers', 'chatellerault', // Vienne (attention à ne pas confondre avec Haute-Vienne)
-    'indre', '36', 'chateauroux' // Indre
+    'dordogne', '24420', '24', 'perigueux', 'bergerac', 'sarlat', 'sarliac', // Dordogne
+    'correze', '19', 'tulle', 'brive', 'brive la gaillarde', 'brive-la-gaillarde', 'malemort', 'ussel', 'egletons', // Corrèze
+    'creuse', '23', 'gueret', 'aubusson', // Creuse
+    'charente', '16', 'angouleme', 'cognac', // Charente
+    'vienne', '86', 'poitiers', 'chatellerault', 'loudun', // Vienne (attention à ne pas confondre avec Haute-Vienne)
+    'indre', '36', 'chateauroux', 'issoudun', // Indre
+    'deux sevres', 'deux-sevres', '79', 'niort', // Deux-Sèvres
+    'charente maritime', 'charente-maritime', '17', 'la rochelle', 'rochefort', 'saintes', // Charente-Maritime
+    'lot et garonne', 'lot-et-garonne', '47', 'agen', // Lot-et-Garonne
+    'gironde', '33', 'bordeaux', // Gironde (pour être sûr)
+    'puy de dome', 'puy-de-dome', '63', 'clermont-ferrand', // Puy-de-Dôme
+    'allier', '03', 'moulins', 'montlucon', // Allier
+    'cantal', '15', 'aurillac' // Cantal
   ];
   
-  // Check if article mentions excluded regions
-  if (excludeRegions.some(r => fullText.includes(r))) {
-    // Exception: if it also clearly mentions Limoges/Haute-Vienne, keep it
-    const hasStrongLocalEvidence = fullText.includes('limoges') || fullText.includes('haute vienne') || fullText.includes('haute-vienne') || fullText.includes(' 87 ') || fullText.includes('87000') || fullText.includes('87100');
-    if (!hasStrongLocalEvidence) return false;
+  // Check if TITLE or DESCRIPTION mentions excluded regions
+  const titleAndDesc = normalizeText(
+    (context.title || '') + ' ' + (context.description || '')
+  );
+  if (excludeRegions.some(r => titleAndDesc.includes(r))) {
+    // Exception: if title/description also clearly mentions Limoges/Haute-Vienne, keep it
+    // (don't just rely on source/URL which may generically mention "Limoges municipales")
+    const hasStrongLocalEvidenceInContent = titleAndDesc.includes('limoges') || titleAndDesc.includes('haute vienne') || titleAndDesc.includes('haute-vienne') || titleAndDesc.includes(' 87 ') || titleAndDesc.includes('87000') || titleAndDesc.includes('87100');
+    if (!hasStrongLocalEvidenceInContent) return false;
   }
 
   // check text matches
@@ -229,7 +240,14 @@ function isStrictMatch(matches, context = {}){
   const src = (context.source || '') || '';
   const url = (context.url || '') || '';
   const srcNorm = normalizeText(src + ' ' + url);
-  const townKeys = ['saint junien','saint-junien','panazol','couzeix','malemort','condat-sur-vienne','isle','feytiat','le palais sur vienne','le palais-sur-vienne'];
+  const townKeys = [
+    'saint junien','saint-junien','panazol','couzeix','condat-sur-vienne','condat sur vienne',
+    'isle','feytiat','le palais sur vienne','le palais-sur-vienne','ambazac','aixe sur vienne',
+    'aixe-sur-vienne','saint-leonard','saint leonard','rochechouart','bellac','eymoutiers',
+    'saint-yrieix','saint yrieix','nexon','nieul','verneuil','rilhac rancon','rilhac-rancon',
+    'pierre-buffiere','pierre buffiere','solignac','boisseuil','saint-laurent',
+    'saint laurent','bonnac la cote','bonnac-la-cote'
+  ];
   const hasRegionInSource = srcNorm.includes('limoges') || srcNorm.includes('limousin') || srcNorm.includes('haute vienne') || srcNorm.includes('haute-vienne') || srcNorm.includes('87') || townKeys.some(t => srcNorm.includes(t));
   if (hasRegionInSource) hasLimoges = true;
 
