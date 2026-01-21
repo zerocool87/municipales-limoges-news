@@ -214,6 +214,14 @@
           suppressSelectChange = false;
         }
         activeFilter = toggled;
+        
+        // Toggle active class on Maudet button
+        if(activeFilter && normalizeString(activeFilter) === 'maudet'){
+          filterMaudetBtn.classList.add('active');
+        } else {
+          filterMaudetBtn.classList.remove('active');
+        }
+        
         applyFilter();
       });
     }
