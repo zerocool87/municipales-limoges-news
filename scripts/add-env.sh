@@ -11,7 +11,7 @@ VARS=(
   "ADMIN_TOKEN"
   "NEWSAPI_CACHE"
   "NEWSAPI_CACHE_TTL"
-  "PREFER_REGION"
+  "PREFER_DEPARTEMENT"
 )
 
 if ! command -v vercel >/dev/null 2>&1; then

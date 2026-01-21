@@ -36,7 +36,7 @@ echo
 cat <<'USAGE'
 Notes:
 - Add runtime environment variables in the Vercel dashboard: Project → Settings → Environment Variables
-  (recommended: NEWSAPI_KEY, ADMIN_TOKEN, NEWSAPI_CACHE, NEWSAPI_CACHE_TTL, PREFER_REGION)
+  (recommended: NEWSAPI_KEY, ADMIN_TOKEN, NEWSAPI_CACHE, NEWSAPI_CACHE_TTL, PREFER_DEPARTEMENT)
 - You can add env vars via CLI (interactive): vercel env add NAME production
 - For CI, prefer setting secrets in GitHub or Vercel rather than embedding tokens in files.
 USAGE
