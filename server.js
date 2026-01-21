@@ -375,6 +375,19 @@ app.get('/api/news', async (req, res) => {
 
   // 6b. Deduplicate near-duplicate titles across sources (e.g., Radio France vs France Bleu)
   function wordsOfTitle(t){ return (titleKey(t)||'').split(/\s+/).filter(Boolean); }
+  function normalizeForDedupe(t){
+    if(!t) return '';
+    let s = (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    // remove common trailing site attribution like ' - francebleu.fr' or ' - Radio France'
+    s = s.replace(/\s*-\s*[a-z0-9\.\- ]+$/i, '');
+    // remove punctuation
+    s = s.replace(/["'\(\),:;.!?«»]/g,' ');
+    // remove typical noise tokens
+    const stop = ['municipales','municipale','élection','election','élections','elections','2026','limoges','la','le','les','au','à','de','du','des','pour','une','en','dans','2025'];
+    const words = s.split(/[^a-z0-9]+/).filter(Boolean).filter(w => !stop.includes(w));
+    return words.join(' ');
+  }
+
   function isSimilarTitle(a, b){
     // if titles mention different candidates, do not treat as similar
     const candidateNames = ['damien maudet','maudet','émile roger lombertie','emile roger lombertie','lombertie','emile roger','yoann balestrat','balestrat','hervé beaudet','herve beaudet','beaudet'];
@@ -389,12 +402,15 @@ app.get('/api/news', async (req, res) => {
       if (!ca.some(x => cb.includes(x))) return false;
     }
 
-    const wa = new Set(wordsOfTitle(a.title || ''));
-    const wb = new Set(wordsOfTitle(b.title || ''));
+    const na = normalizeForDedupe(a.title || '');
+    const nb = normalizeForDedupe(b.title || '');
+    const wa = new Set(na.split(/\s+/).filter(Boolean));
+    const wb = new Set(nb.split(/\s+/).filter(Boolean));
     if (wa.size === 0 || wb.size === 0) return false;
     const inter = [...wa].filter(w => wb.has(w)).length;
     const minLen = Math.min(wa.size, wb.size);
-    return (inter / Math.max(1, minLen)) >= 0.6; // threshold: 60%
+    // lower threshold but with cleaned text
+    return (inter / Math.max(1, minLen)) >= 0.5; // threshold: 50%
   }
 
   function preferArticle(arr){
@@ -412,6 +428,7 @@ app.get('/api/news', async (req, res) => {
 
   const deduped = [];
   const usedIdx = new Set();
+  const dedupeGroups = []; // collect groups for debug
   for (let i = 0; i < allArticles.length; i++){
     if (usedIdx.has(i)) continue;
     const a = allArticles[i];
@@ -424,8 +441,12 @@ app.get('/api/news', async (req, res) => {
     }
     const chosen = group.length > 1 ? preferArticle(group) : a;
     deduped.push(chosen);
+    dedupeGroups.push({ titles: group.map(x => x.title), chosen: chosen.title, sources: group.map(x => x.source) });
   }
   allArticles = deduped;
+
+  // attach dedupe debug info later if requested
+  const dedupeDebug = dedupeGroups;
 
   // 7. Deduplicate by exact URL to remove strict duplicates
   const seen = new Set();
@@ -461,7 +482,7 @@ app.get('/api/news', async (req, res) => {
     source: sources.join('+'), 
     strict,
     count: finalArticles.length,
-    debug: debugReq ? { totalBeforeLimit: allArticles.length } : undefined
+    debug: debugReq ? { totalBeforeLimit: allArticles.length, dedupeGroups: dedupeDebug } : undefined
   });
 });
 
