@@ -1,12 +1,12 @@
-import { getMatches, fetchRssFeeds, readRemovedTags, normalizeTextSimple } from '../lib/news.js';
+import { getMatches, fetchRssFeeds, readRemovedTags, normalizeTextSimple, isStrictMatch } from '../lib/news.js';
 import fetch from 'node-fetch';
 
 export default async function handler(req, res){
   try{
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 50);
-    // strict mode removed — always non-strict
-    const strict = false;
+    // strict mode: require Limoges + election-related keyword (municipales/élection) by default
+    const strict = (process.env.STRICT_DEFAULT || 'true') === 'true';
     const debugReq = url.searchParams.get('debug') === 'true';
     let debugSamples = null;
     const NEWSAPI_KEY = process.env.NEWSAPI_KEY;
@@ -40,12 +40,17 @@ export default async function handler(req, res){
             });
           }catch(e){ console.warn('removed tags filtering failed', e); }
 
-          const articles = articlesAll.filter(a => {
+          let articles = articlesAll.filter(a => {
             if (!a.publishedAt) return false;
             const pd = new Date(a.publishedAt); if (isNaN(pd)) return false;
             if (pd < cutoff) return false;
-            return true; // non-strict: accept all matched articles within cutoff
+            return true;
           }).sort((a,b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+
+          // Apply strict filtering (Limoges + election keywords) if requested
+          if (strict) {
+            articles = articles.filter(a => isStrictMatch(a.matches || [], { source: a.source, url: a.url }));
+          }
 
           if (articles.length > 0) return res.status(200).json({ articles: articles.slice(0, limit), source: 'newsapi', strict, debug: debugReq ? { samples: debugSamples } : undefined });
         }
@@ -62,8 +67,13 @@ export default async function handler(req, res){
         return res.status(200).json({ articles: [], source: 'rss', strict, note: 'No RSS articles found', debug: debugReq ? { samples: debugSamples, feeds: reports } : undefined });
       }
 
+      // apply strict filtering if requested
+      if (strict) {
+        articles = articles.filter(a => isStrictMatch(a.matches || [], { source: a.source, url: a.url }));
+      }
+
       const beforeCount = articles.length;
-      const afterCount = beforeCount; // no strict filtering applied
+      const afterCount = beforeCount; // retained for future metrics
 
       if (!articles || articles.length === 0) return res.status(200).json({ articles: [], source: 'rss', strict, note: 'No matching RSS articles found.', debug: debugReq ? { samples: debugSamples, feeds: reports } : undefined });
       return res.status(200).json({ articles: articles.slice(0, limit), source: 'rss', strict, debug: debugReq ? { feeds: reports } : undefined });
