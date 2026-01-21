@@ -82,7 +82,7 @@
       const langParam = lang === 'all' ? '' : `&lang=${lang}`;
 
       try {
-        const res = await fetch(`/api/news?limit=50${langParam}`);
+        const res = await fetch(`/api/news?limit=100${langParam}`);
         if (!res.ok) throw new Error('Erreur réseau');
         const json = await res.json();
         const articles = json.articles || [];
