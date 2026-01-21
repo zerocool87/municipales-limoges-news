@@ -297,6 +297,15 @@ app.get('/api/news', async (req, res) => {
   }
 
   // 2. Also fetch from NewsAPI if available (supplementary source)
+  const EXCLUDED_SOURCES = ['linternaute.com', 'linternaute'];
+  const isExcludedSource = (item) => {
+    const url = (item.url || '').toLowerCase();
+    const source = (item.source || '').toLowerCase();
+    const title = (item.title || '').toLowerCase();
+    const description = (item.description || '').toLowerCase();
+    return EXCLUDED_SOURCES.some(s => url.includes(s) || source.includes(s) || title.includes(s) || description.includes(s));
+  };
+
   if (NEWSAPI_KEY) {
     try {
       const q = encodeURIComponent('"municipales Limoges 2026" OR "élections municipales Limoges 2026" OR "municipales Limoges" OR "élections municipales Limoges" OR (Limoges AND (municipales OR élections OR mairie OR candidats OR 2026))');
@@ -322,7 +331,7 @@ app.get('/api/news', async (req, res) => {
             matches, 
             primaryMatch 
           };
-        }).filter(a => a.matches && a.matches.length > 0);
+        }).filter(a => a.matches && a.matches.length > 0 && !isExcludedSource(a));
 
         if (newsapiArticles.length > 0) {
           sources.push('newsapi');
@@ -334,7 +343,10 @@ app.get('/api/news', async (req, res) => {
     }
   }
 
-  // 3. Apply removed tags filter
+  // 3. Exclude disallowed sources
+  allArticles = allArticles.filter(a => !isExcludedSource(a));
+
+  // 4. Apply removed tags filter
   try {
     const removedArr = (await readRemovedTags()).map(r => normalizeTextSimple(r));
     allArticles.forEach(a => {
@@ -347,7 +359,7 @@ app.get('/api/news', async (req, res) => {
     });
   } catch(e) { console.warn('removed tags filtering failed', e); }
 
-  // 4. Filter by date (last 60 days)
+  // 5. Filter by date (last 60 days)
   const cutoff = new Date(Date.now() - 60 * 24 * 3600 * 1000);
   allArticles = allArticles.filter(a => {
     if (!a.publishedAt) return true; // keep articles without date
@@ -356,7 +368,7 @@ app.get('/api/news', async (req, res) => {
     return pd >= cutoff;
   });
 
-  // 5. Apply strict filtering (Limoges + election keywords) if requested
+  // 6. Apply strict filtering (Limoges + election keywords) if requested
   if (strict) {
     allArticles = allArticles.filter(a => isStrictMatch(a.matches || [], { 
       source: a.source, 
@@ -366,7 +378,7 @@ app.get('/api/news', async (req, res) => {
     }));
   }
 
-  // 6. Remove Google News wrappers when a direct source exists for the same title
+  // 7. Remove Google News wrappers when a direct source exists for the same title
   function titleKey(title){ return (normalizeText(title||'')||'').replace(/[^a-z0-9]+/g,' ').trim(); }
   const preferredHosts = ['lepopulaire.fr','francebleu.fr','lamontagne.fr','actu.fr','france3','lepopulaire','francebleu','lamontagne'];
   const grouped = new Map();
@@ -387,7 +399,7 @@ app.get('/api/news', async (req, res) => {
   }
   allArticles = cleaned;
 
-  // 6b. Deduplicate near-duplicate titles across sources (e.g., Radio France vs France Bleu)
+  // 7b. Deduplicate near-duplicate titles across sources (e.g., Radio France vs France Bleu)
   function wordsOfTitle(t){ return (titleKey(t)||'').split(/\s+/).filter(Boolean); }
   function isSimilarTitle(a, b){
     // if titles mention different candidates, do not treat as similar
@@ -441,7 +453,7 @@ app.get('/api/news', async (req, res) => {
   }
   allArticles = deduped;
 
-  // 7. Deduplicate by exact URL to remove strict duplicates
+  // 8. Deduplicate by exact URL to remove strict duplicates
   const seen = new Set();
   allArticles = allArticles.filter(a => {
     if (!a.url) return true;
@@ -451,7 +463,7 @@ app.get('/api/news', async (req, res) => {
     return true;
   });
 
-  // 7. Sort by date (most recent first)
+  // 9. Sort by date (most recent first)
   allArticles.sort((a, b) => {
     const dateA = a.publishedAt ? new Date(a.publishedAt) : new Date(0);
     const dateB = b.publishedAt ? new Date(b.publishedAt) : new Date(0);

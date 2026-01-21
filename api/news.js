@@ -6,6 +6,15 @@ function titleKey(title){ return (normalizeText(title||'')||'').replace(/[^a-z0-
 function wordsOfTitle(t){ return (titleKey(t)||'').split(/\s+/).filter(Boolean); }
 const preferredHosts = ['lepopulaire.fr','francebleu.fr','lamontagne.fr','actu.fr','france3','lepopulaire','francebleu','lamontagne'];
 const candidateNames = ['damien maudet','maudet','émile roger lombertie','emile roger lombertie','lombertie','emile roger','yoann balestrat','balestrat','hervé beaudet','herve beaudet','beaudet'];
+const EXCLUDED_SOURCES = ['linternaute.com', 'linternaute'];
+
+function isExcludedSource(item){
+  const url = (item.url || '').toLowerCase();
+  const source = (item.source || '').toLowerCase();
+  const title = (item.title || '').toLowerCase();
+  const description = (item.description || '').toLowerCase();
+  return EXCLUDED_SOURCES.some(s => url.includes(s) || source.includes(s) || title.includes(s) || description.includes(s));
+}
 
 function findCandidatesInTitle(t){
   const s = (t || '').toLowerCase();
@@ -119,7 +128,7 @@ export default async function handler(req, res){
               matches, 
               primaryMatch 
             };
-          }).filter(a => a.matches && a.matches.length > 0);
+          }).filter(a => a.matches && a.matches.length > 0 && !isExcludedSource(a));
 
           if (newsapiArticles.length > 0) {
             sources.push('newsapi');
@@ -131,7 +140,10 @@ export default async function handler(req, res){
       }
     }
 
-    // 3. Apply removed tags filter
+    // 3. Exclude disallowed sources
+    allArticles = allArticles.filter(a => !isExcludedSource(a));
+
+    // 4. Apply removed tags filter
     try {
       const removedArr = (await readRemovedTags()).map(r => normalizeTextSimple(r));
       allArticles.forEach(a => {
@@ -144,7 +156,7 @@ export default async function handler(req, res){
       });
     } catch(e) { console.warn('removed tags filtering failed', e); }
 
-    // 4. Filter by date (last 60 days)
+    // 5. Filter by date (last 60 days)
     const cutoff = new Date(Date.now() - 60 * 24 * 3600 * 1000);
     allArticles = allArticles.filter(a => {
       if (!a.publishedAt) return true; // keep articles without date
@@ -153,7 +165,7 @@ export default async function handler(req, res){
       return pd >= cutoff;
     });
 
-    // 5. Apply strict filtering (Limoges + election keywords) if requested
+    // 6. Apply strict filtering (Limoges + election keywords) if requested
     if (strict) {
       allArticles = allArticles.filter(a => isStrictMatch(a.matches || [], { 
         source: a.source, 
@@ -163,7 +175,7 @@ export default async function handler(req, res){
       }));
     }
 
-    // 6a. Remove Google News wrappers when a direct source exists for the same title
+    // 7a. Remove Google News wrappers when a direct source exists for the same title
     const grouped = new Map();
     for(const a of allArticles){
       const key = titleKey(a.title || '');
@@ -182,10 +194,10 @@ export default async function handler(req, res){
     }
     allArticles = cleaned;
 
-    // 6b. Deduplicate near-duplicate titles across sources (Radio France vs France Bleu)
+    // 7b. Deduplicate near-duplicate titles across sources (Radio France vs France Bleu)
     allArticles = deduplicateSimilarTitles(allArticles);
 
-    // 7. Deduplicate by URL
+    // 8. Deduplicate by URL
     const seen = new Set();
     allArticles = allArticles.filter(a => {
       if (!a.url) return true;
@@ -195,14 +207,14 @@ export default async function handler(req, res){
       return true;
     });
 
-    // 7. Sort by date (most recent first)
+    // 9. Sort by date (most recent first)
     allArticles.sort((a, b) => {
       const dateA = a.publishedAt ? new Date(a.publishedAt) : new Date(0);
       const dateB = b.publishedAt ? new Date(b.publishedAt) : new Date(0);
       return dateB - dateA;
     });
 
-    // 8. Return results
+    // 10. Return results
     const finalArticles = allArticles.slice(0, limit);
     
     if (finalArticles.length === 0) {
