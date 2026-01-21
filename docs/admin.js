@@ -58,6 +58,15 @@ function renderFeeds(feeds){
   });
 }
 
+function renderFeedSample(li, items){
+  const sample = li.querySelector('.feed-sample');
+  if(!sample) return;
+  sample.style.display = 'block';
+  if(!items || items.length === 0){ sample.innerHTML = '<em>Aucun item retourné</em>'; return; }
+  const html = items.map(it => `<div class="item"><a href="${escapeHtml(it.url)}" target="_blank">${escapeHtml(it.title)}</a> <div class="meta">${escapeHtml(it.publishedAt || '')}</div><div class="matches">${(it.matches||[]).map(m=>`<span class="mini-tag">${escapeHtml(m)}</span>`).join(' ')}</div></div>`).join('');
+  sample.innerHTML = html;
+}
+
 function renderBlacklisted(list){
   const el = document.getElementById('blacklisted-list'); el.innerHTML = '';
   list.forEach(u=>{
@@ -82,15 +91,6 @@ async function addFeed(){
     msg.textContent='Ajouté.'; document.getElementById('add-url').value=''; document.getElementById('add-name').value='';
     refresh();
   }catch(e){ msg.textContent='Erreur: '+e.message }
-}
-
-function renderFeedSample(li, items){
-  const sample = li.querySelector('.feed-sample');
-  if(!sample) return;
-  sample.style.display = 'block';
-  if(!items || items.length === 0){ sample.innerHTML = '<em>Aucun item retourné</em>'; return; }
-  const html = items.map(it => `<div class="item"><a href="${escapeHtml(it.url)}" target="_blank">${escapeHtml(it.title)}</a> <div class="meta">${escapeHtml(it.publishedAt || '')}</div><div class="matches">${(it.matches||[]).map(m=>`<span class="mini-tag">${escapeHtml(m)}</span>`).join(' ')}</div></div>`).join('');
-  sample.innerHTML = html;
 }
 
 function escapeHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
