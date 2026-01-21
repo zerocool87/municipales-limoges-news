@@ -245,75 +245,11 @@ function isStrictMatch(matches, context = {}){
   return hasLimoges && (hasCandidate || hasElection);
 }
 
-async function fetchRssFeeds(limit = 20, maxAgeHours = MAX_AGE_DAYS * 24) {
-  const items = [];
-  await Promise.all(RSS_FEEDS.map(async (f) => {
-    if (blacklistedFeeds.has(f.url)) return; // skip known-broken feeds
-
-    try {
-      // Try fetching the feed ourselves so we can set browser-like headers that some sites require
-      const resp = await fetch(f.url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (X11; Linux) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36',
-          'Accept': 'application/rss+xml, application/xml, text/xml, */*'
-        }
-      });
-
-      if (!resp.ok) {
-        await handleFeedFailure(f.url, f.name, `Status code ${resp.status}`);
-        return;
-      }
-
-      const xml = await resp.text();
-      const feed = await parser.parseString(xml);
-
-      const feedItems = (feed.items || []).map(it => ({
-        title: it.title,
-        description: it.contentSnippet || it.content || it.summary || '',
-        url: it.link,
-        source: f.name || feed.title || (new URL(f.url)).hostname,
-        publishedAt: it.isoDate || it.pubDate || null
-      }));
-
-      // Filter items to those that mention Limoges/municipales and are recent enough
-      const cutoff = new Date(Date.now() - (maxAgeHours || MAX_AGE_DAYS * 24) * 3600 * 1000);
-
-      // read global removed tags once for this fetch (normalize + substring-aware). Always include server-default removals like 'municipal'
-      const fileRemoved = (await readRemovedTags()).map(r => normalizeTextSimple(r));
-      const removedSet = new Set([...fileRemoved, 'municipal']);
-
-      const filtered = feedItems.map(it => {
-        const text = (it.title || '') + ' ' + (it.description || '');
-        let matches = getMatches(text);
-        matches = matches.filter(m => {
-          const nm = normalizeTextSimple(m);
-          // remove match if it contains or is contained by any removed token
-          return ![...removedSet].some(rn => nm.includes(rn) || rn.includes(nm));
-        });
-        // also sanitize source and description of removed tokens for cleanliness
-        const sanitizedSource = (it.source || '').replace(/\bmunicipal\w*\b/gi, '').replace(/\s+/g,' ').trim();
-        const primaryMatch = matches.length ? matches[0] : null;
-        return Object.assign({}, it, { matches, primaryMatch, source: sanitizedSource });
-      }).filter(it => {
-        if (!it.publishedAt) return false;
-        const pubDate = new Date(it.publishedAt);
-        if (isNaN(pubDate)) return false;
-        // ignore articles older than cutoff
-        if (pubDate < cutoff) return false;
-        // require a strict Limoges-municipales match for RSS items to reduce false positives
-        return (it.matches && it.matches.length > 0 && isStrictMatch(it.matches, { source: it.source, url: it.url, publishedAt: it.publishedAt }));
-      });
-
-      items.push(...filtered);
-    } catch (err) {
-      await handleFeedFailure(f.url, f.name, err && err.message ? err.message : err);
-    }
-  }));
-
-  const sorted = items
-    .filter(i => i.publishedAt)
-    .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
-  return sorted.slice(0, limit);
+// Delegate RSS fetching to shared implementation in lib/news.js
+async function fetchRssFeeds(limit = 20, debug = false) {
+  // lib.fetchRssFeeds(limit, debug) returns an array when debug=false or { items, reports } when debug=true
+  const lib = await import('./lib/news.js');
+  return await lib.fetchRssFeeds(limit, debug);
 }
 
 app.get('/api/news', async (req, res) => {
@@ -410,59 +346,28 @@ app.get('/api/news', async (req, res) => {
     allArticles = allArticles.filter(a => isStrictMatch(a.matches || [], { source: a.source, url: a.url }));
   }
 
-  // 6. Deduplicate similar articles by title (and still by URL afterwards)
-  // Use normalized titles + token overlap to detect near-duplicates and prefer
-  // non-Google-News URLs, longer descriptions, or more matches when merging.
-  function titleKey(title){ return (normalizeText(title)||'').replace(/[^a-z0-9]+/g,' ').trim(); }
-  function wordSet(s){ return new Set((s||'').split(/\s+/).filter(w => w.length>2)); }
-  function isSimilarTitle(a,b){
-    const ka = titleKey(a||'');
-    const kb = titleKey(b||'');
-    if(!ka || !kb) return false;
-    if(ka === kb) return true;
-    if(ka.includes(kb) || kb.includes(ka)) return true;
-    const sa = wordSet(ka);
-    const sb = wordSet(kb);
-    const inter = [...sa].filter(x=>sb.has(x)).length;
-    const union = new Set([...sa,...sb]).size || 1;
-    const overlap = inter / union;
-    return overlap >= 0.65; // threshold (tunable)
-  }
-  function preferArticle(a,b){
-    // prefer non-google news wrapper when possible
-    const ga = (a.url||'').includes('news.google.com');
-    const gb = (b.url||'').includes('news.google.com');
-    if(ga && !gb) return b;
-    if(gb && !ga) return a;
-    // prefer longer description
-    const da = (a.description||'').length;
-    const db = (b.description||'').length;
-    if(da !== db) return da > db ? a : b;
-    // prefer more matches
-    const ma = (a.matches||[]).length;
-    const mb = (b.matches||[]).length;
-    if(ma !== mb) return ma > mb ? a : b;
-    // otherwise prefer the most recent
-    const pa = a.publishedAt ? new Date(a.publishedAt) : new Date(0);
-    const pb = b.publishedAt ? new Date(b.publishedAt) : new Date(0);
-    return pa >= pb ? a : b;
-  }
-
-  const deduped = [];
+  // 6. Remove Google News wrappers when a direct source exists for the same title
+  function titleKey(title){ return (normalizeText(title||'')||'').replace(/[^a-z0-9]+/g,' ').trim(); }
+  const preferredHosts = ['lepopulaire.fr','francebleu.fr','lamontagne.fr','actu.fr','france3','lepopulaire','francebleu','lamontagne'];
+  const grouped = new Map();
   for(const a of allArticles){
-    let merged = false;
-    for(let i = 0; i < deduped.length; ++i){
-      if(isSimilarTitle(a.title, deduped[i].title)){
-        deduped[i] = preferArticle(deduped[i], a);
-        merged = true;
-        break;
-      }
-    }
-    if(!merged) deduped.push(a);
+    const key = titleKey(a.title || '');
+    const arr = grouped.get(key) || [];
+    arr.push(a);
+    grouped.set(key, arr);
   }
-  allArticles = deduped;
+  const cleaned = [];
+  for(const [k, arr] of grouped.entries()){
+    if(arr.length === 1){ cleaned.push(arr[0]); continue; }
+    // prefer an article that is not a Google wrapper and/or whose source matches preferred hosts
+    let preferred = arr.find(x => x.url && !x.url.includes('news.google.com') && preferredHosts.some(h => (x.source||'').toLowerCase().includes(h)));
+    if(!preferred) preferred = arr.find(x => x.url && !x.url.includes('news.google.com'));
+    if(!preferred) preferred = arr[0];
+    cleaned.push(preferred);
+  }
+  allArticles = cleaned;
 
-  // still deduplicate by exact URL to remove strict duplicates
+  // 7. Deduplicate by exact URL to remove strict duplicates
   const seen = new Set();
   allArticles = allArticles.filter(a => {
     if (!a.url) return true;
