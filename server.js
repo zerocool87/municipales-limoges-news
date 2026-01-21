@@ -317,192 +317,135 @@ async function fetchRssFeeds(limit = 20, maxAgeHours = MAX_AGE_DAYS * 24) {
 }
 
 app.get('/api/news', async (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit) || 50, 300);
-  // We'll apply a strict Limoges-municipales filter server-side when requested
-  const strict = req.query.strict === 'true' ? true : false;
-  // allow requesting a custom recency window in hours (e.g., ?hours=24)
-  const maxAgeHours = req.query.hours ? Math.max(1, parseInt(req.query.hours, 10) || 24) : MAX_AGE_DAYS * 24; 
-  let debugSamples = null;
-  let newsApiArticles = [];
-  let newsApiDebugObj = undefined;
+  const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+  // strict mode: require Limoges + election-related keyword (municipales/élection) by default
+  // Also allow ?strict=true/false query param to override
+  const strictParam = req.query.strict;
+  const strictEnv = process.env.STRICT_DEFAULT;
+  const strict = strictParam !== undefined 
+    ? strictParam === 'true' 
+    : (strictEnv === undefined || strictEnv === '' ? true : strictEnv === 'true');
+  const debugReq = req.query.debug === 'true';
 
-  // Try NewsAPI if key is present
+  // RSS feeds are the PRIMARY source (better for local Limoges news)
+  // NewsAPI is used as supplementary source to add more articles
+  let allArticles = [];
+  let sources = [];
+
+  // 1. Always fetch RSS feeds first (primary source)
+  try {
+    const rssResult = await fetchRssFeeds(limit * 2, debugReq);
+    let rssArticles = Array.isArray(rssResult) ? rssResult : rssResult.items || [];
+    
+    if (rssArticles.length > 0) {
+      sources.push('rss');
+      allArticles.push(...rssArticles);
+    }
+  } catch(e) { 
+    console.warn('RSS fetch failed:', e && e.message ? e.message : e); 
+  }
+
+  // 2. Also fetch from NewsAPI if available (supplementary source)
   if (NEWSAPI_KEY) {
-    // Require "Limoges" in NewsAPI queries to avoid catching national articles that do not mention the city
-    const q = encodeURIComponent('(Limoges) AND (municipales OR "élections municipales" OR mairie OR candidats OR 2026)');
-    // Cap NewsAPI lookback to server limit to avoid 'parameterInvalid' errors (e.g., allowed = MAX_AGE_DAYS)
-    const allowedHoursForNewsApi = MAX_AGE_DAYS * 24; // server-enforced cap
-    let usedHoursForNewsApi = maxAgeHours;
-    let newsApiCapped = false;
-    if (maxAgeHours > allowedHoursForNewsApi) { usedHoursForNewsApi = allowedHoursForNewsApi; newsApiCapped = true; }
-
     try {
-      let data;
-      const now = Date.now();
-      if (NEWSAPI_CACHE && newsApiCache.articles && (now - newsApiCache.timestamp < NEWSAPI_CACHE_TTL * 60 * 1000)) {
-        console.log('Serving NewsAPI from cache');
-        data = { status: 'ok', articles: newsApiCache.articles };
-      } else {
-        const from = new Date(now - usedHoursForNewsApi * 3600 * 1000).toISOString().split('T')[0];
-        const url = `https://newsapi.org/v2/everything?q=${q}&from=${from}&sortBy=publishedAt&pageSize=100&language=fr&apiKey=${NEWSAPI_KEY}`;
-        const r = await fetch(url);
-        data = await r.json();
-        if (NEWSAPI_CACHE && data && data.status === 'ok') {
-          newsApiCache = { articles: data.articles, timestamp: now };
-        }
-      }
-
+      const q = encodeURIComponent('"municipales Limoges 2026" OR "élections municipales Limoges 2026" OR "municipales Limoges" OR "élections municipales Limoges" OR (Limoges AND (municipales OR élections OR mairie OR candidats OR 2026))');
+      const NEWSAPI_LOOKBACK_DAYS = parseInt(process.env.NEWSAPI_LOOKBACK_DAYS || '30', 10);
+      const from = new Date(Date.now() - NEWSAPI_LOOKBACK_DAYS * 24 * 3600 * 1000).toISOString().split('T')[0];
+      const urlApi = `https://newsapi.org/v2/everything?q=${q}&from=${from}&sortBy=publishedAt&pageSize=${limit}&language=fr&apiKey=${NEWSAPI_KEY}`;
+      
+      const r = await fetch(urlApi);
+      const data = await r.json();
+      
       if (data.status === 'ok' && (data.articles || []).length > 0) {
-        const cutoff = new Date(Date.now() - (maxAgeHours || MAX_AGE_DAYS * 24) * 3600 * 1000);
-        // Support multiple pages if user requests more than 100 items
-        const maxPages = 3; // limit pages to avoid excessive NewsAPI usage
-        const pages = Math.min(Math.ceil(limit / 100), maxPages);
-        let collected = (data.articles || []).slice();
-        // fetch additional pages if needed
-        for(let p = 2; p <= pages; p++){
-          try{
-            const from = new Date(Date.now() - usedHoursForNewsApi * 3600 * 1000).toISOString().split('T')[0];
-            const pageUrl = `https://newsapi.org/v2/everything?q=${q}&from=${from}&sortBy=publishedAt&pageSize=100&page=${p}&language=fr&apiKey=${NEWSAPI_KEY}`;
-            const rr = await fetch(pageUrl);
-            const extra = await rr.json();
-            if(extra && extra.status === 'ok' && extra.articles && extra.articles.length) collected.push(...extra.articles);
-          }catch(e){ console.warn('additional NewsAPI page failed', e && e.message ? e.message : e); break; }
-        }
-
-        const articlesAll = collected.map(a => {
+        const newsapiArticles = (data.articles || []).map(a => {
           const title = a.title;
           const description = a.description;
-          const matches = getMatches((title || '') + ' ' + (description || ''));
+          let matches = getMatches((title || '') + ' ' + (description || ''));
           const primaryMatch = matches.length ? matches[0] : null;
-          return {
-            title,
-            description,
-            url: a.url,
-            source: a.source?.name,
-            publishedAt: a.publishedAt,
-            matches,
-            primaryMatch
+          return { 
+            title, 
+            description, 
+            url: a.url, 
+            source: a.source?.name || 'NewsAPI', 
+            publishedAt: a.publishedAt, 
+            matches, 
+            primaryMatch 
           };
-        }).filter(a => {
-          // Require strict match AND explicit regional evidence in the article (title/description/url/source)
-          const strictOk = isStrictMatch(a.matches, { source: a.source, url: a.url });
-          const evidence = ((a.title || '') + ' ' + (a.description || '') + ' ' + (a.url || '') + ' ' + (a.source || '')).toLowerCase();
-          const hasRegion = /limoges|limousin|haute[- ]?vienne|\b87\b/i.test(evidence);
-          return strictOk && hasRegion;
-        });
+        }).filter(a => a.matches && a.matches.length > 0);
 
-        const beforeCount = articlesAll.length;
-        // In non-strict mode we only filter by the cutoff date; keep all matched articles
-        const articles = articlesAll.filter(a => {
-          if (!a.publishedAt) return false;
-          const pd = new Date(a.publishedAt);
-          if (isNaN(pd)) return false;
-          if (pd < cutoff) return false;
-          return true;
-        }).sort((a,b) => new Date(b.publishedAt) - new Date(a.publishedAt));
-
-        const afterCount = articles.length; 
-
-        if (articles.length > 0) {
-          // apply server-side removed tags (including default 'municipal') to NewsAPI matches and sources
-          const fileRemoved = (await readRemovedTags()).map(r => normalizeTextSimple(r));
-          const removedSet = new Set([...fileRemoved, 'municipal'].map(r => normalizeTextSimple(r)));
-          const sanitized = articles.slice(0, limit).map(a => {
-            let matches = (a.matches || []).filter(m => {
-              const nm = normalizeTextSimple(m);
-              return ![...removedSet].some(rn => nm.includes(rn) || rn.includes(nm));
-            });
-            const primaryMatch = matches.length ? matches[0] : null;
-            let source = a.source || '';
-            try{
-              // remove any removed tokens from source for cleanliness
-              for(const tok of removedSet){
-                if(!tok) continue;
-                const re = new RegExp('\\b' + tok.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&') + '\\w*\\b','gi');
-                source = source.replace(re, '');
-              }
-              source = (source || '').replace(/\s+/g,' ').trim();
-            }catch(e){}
-            return Object.assign({}, a, { matches, primaryMatch, source });
-          });
-          newsApiArticles = sanitized;
-          newsApiDebugObj = req.query.debug === 'true' ? { samples: debugSamples, newsApiCapped: !!newsApiCapped, requestedHours: maxAgeHours, usedHoursForNewsApi } : undefined;
+        if (newsapiArticles.length > 0) {
+          sources.push('newsapi');
+          allArticles.push(...newsapiArticles);
         }
       }
-      // If NewsAPI returned empty or not ok, fall back to RSS
-      console.warn('NewsAPI returned no articles or non-ok status, falling back to RSS', data);
-    } catch (err) {
-      console.warn('NewsAPI fetch failed, falling back to RSS', err.message);
+    } catch(e) { 
+      console.warn('NewsAPI fetch failed:', e && e.message ? e.message : e); 
     }
   }
-  // RSS fallback (no key required)
+
+  // 3. Apply removed tags filter
   try {
-    let articles = await fetchRssFeeds(limit, maxAgeHours);
-    if (!articles || articles.length === 0) return res.json({ articles: [], source: 'rss', strict, note: 'No RSS articles found' });
-
-    // Apply strict Limoges-municipales filter server-side
-    const filteredRss = articles.filter(a => {
-      if(!isStrictMatch(a.matches, { source: a.source, url: a.url })) return false;
-      const s = (a.source || '').toLowerCase();
-      const u = (a.url || '').toLowerCase();
-      for(const b of BLOCKED_SOURCES) if(s.includes(b)) return false;
-      for(const h of BLOCKED_HOSTS) if(u.includes(h)) return false;
-      return true;
+    const removedArr = (await readRemovedTags()).map(r => normalizeTextSimple(r));
+    allArticles.forEach(a => {
+      if (a.matches) {
+        a.matches = a.matches.filter(m => {
+          const nm = normalizeTextSimple(m);
+          return !removedArr.some(rn => nm.includes(rn) || rn.includes(nm));
+        });
+      }
     });
+  } catch(e) { console.warn('removed tags filtering failed', e); }
 
-    if (!filteredRss || filteredRss.length === 0) return res.json({ articles: [], source: 'rss', strict, note: 'No matching RSS articles found.', debug: req.query.debug === 'true' ? { samples: debugSamples } : undefined });
+  // 4. Filter by date (last 60 days)
+  const cutoff = new Date(Date.now() - 60 * 24 * 3600 * 1000);
+  allArticles = allArticles.filter(a => {
+    if (!a.publishedAt) return true; // keep articles without date
+    const pd = new Date(a.publishedAt);
+    if (isNaN(pd)) return true;
+    return pd >= cutoff;
+  });
 
-    const rssArticles = filteredRss;
-
-    // Merge NewsAPI (if any) + RSS, deduplicating by URL (fallback key: title+source)
-    const seen = new Set();
-    let combined = [];
-    function keyFor(a){
-      if(a.url) return a.url.split('#')[0];
-      return `${(a.title||'').slice(0,140)}|${(a.source||'').slice(0,80)}`;
-    }
-
-    // add NewsAPI items first
-    for(const a of newsApiArticles){
-      if (combined.length >= limit) break;
-      const k = keyFor(a);
-      if(seen.has(k)) continue;
-      seen.add(k);
-      combined.push(a);
-    }
-
-    // then fill with RSS items
-    for(const a of rssArticles){
-      if (combined.length >= limit) break;
-      const k = keyFor(a);
-      if(seen.has(k)) continue;
-      seen.add(k);
-      combined.push(a);
-    }
-
-    // Final sort: most recent first (descending)
-    combined.sort((a,b)=>{
-      const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
-      const tb = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
-      return tb - ta;
-    });
-
-    // Prefer results that explicitly mention the region (Limoges / Haute-Vienne / 87)
-    // This behaviour can be toggled with the PREFER_REGION environment variable (true/false).
-    const PREFER_REGION = (process.env.PREFER_REGION || 'true') === 'true';
-    if (PREFER_REGION) {
-      const regionRegex = /limoges|limousin|haute[- ]?vienne|\b87\b/i;
-      const combinedRegional = combined.filter(a => regionRegex.test(((a.title||'') + ' ' + (a.description||'') + ' ' + (a.source||'') + ' ' + (a.url||'')).toLowerCase()));
-      if (combinedRegional && combinedRegional.length) combined = combinedRegional;
-    }
-
-    const source = (newsApiArticles.length && rssArticles.length) ? 'combined' : (newsApiArticles.length ? 'newsapi' : 'rss');
-    const debugObj = req.query.debug === 'true' ? Object.assign({}, newsApiDebugObj || {}, { rssCount: rssArticles.length || 0, newsCount: newsApiArticles.length || 0 }) : undefined;
-    return res.json({ articles: combined.slice(0, limit), source, strict, debug: debugObj });
-  } catch (err) {
-    console.error(err);
-    return res.json({ articles: [], source: 'none', strict, error: 'Failed to fetch news (NewsAPI and RSS).' });
+  // 5. Apply strict filtering (Limoges + election keywords) if requested
+  if (strict) {
+    allArticles = allArticles.filter(a => isStrictMatch(a.matches || [], { source: a.source, url: a.url }));
   }
+
+  // 6. Deduplicate by URL
+  const seen = new Set();
+  allArticles = allArticles.filter(a => {
+    if (!a.url) return true;
+    const normalizedUrl = a.url.toLowerCase().replace(/\/$/, '');
+    if (seen.has(normalizedUrl)) return false;
+    seen.add(normalizedUrl);
+    return true;
+  });
+
+  // 7. Sort by date (most recent first)
+  allArticles.sort((a, b) => {
+    const dateA = a.publishedAt ? new Date(a.publishedAt) : new Date(0);
+    const dateB = b.publishedAt ? new Date(b.publishedAt) : new Date(0);
+    return dateB - dateA;
+  });
+
+  // 8. Return results
+  const finalArticles = allArticles.slice(0, limit);
+  
+  if (finalArticles.length === 0) {
+    return res.json({ 
+      articles: [], 
+      source: sources.join('+') || 'none', 
+      strict, 
+      note: 'No matching articles found.' 
+    });
+  }
+
+  return res.json({ 
+    articles: finalArticles, 
+    source: sources.join('+'), 
+    strict,
+    count: finalArticles.length,
+    debug: debugReq ? { totalBeforeLimit: allArticles.length } : undefined
+  });
 });
 
 // --- Admin endpoints for feed management ---
