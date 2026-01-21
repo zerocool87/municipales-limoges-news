@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import Parser from 'rss-parser';
 import fs from 'fs/promises';
+import videosHandler from './api/videos.js';
 
 dotenv.config();
 
@@ -315,6 +316,8 @@ async function fetchRssFeeds(limit = 20, maxAgeHours = MAX_AGE_DAYS * 24) {
     .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
   return sorted.slice(0, limit);
 }
+
+app.get('/api/videos', videosHandler);
 
 app.get('/api/news', async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 20, 50);
