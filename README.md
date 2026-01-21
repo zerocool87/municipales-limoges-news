@@ -56,7 +56,7 @@ Le front est prêt pour être publié sur **GitHub Pages** depuis le dossier `do
 Ce projet est prêt pour un déploiement serverless sur **Vercel** (les endpoints dans `api/*.js` sont traités comme fonctions serverless). Pour déployer :
 
 1. Sur Vercel Dashboard, cliquez sur **Import Project** → sélectionnez votre repo GitHub. Vercel détecte automatiquement `vercel.json` et les fonctions dans `api/`.
-2. Ajoutez les **Environment Variables** (Project → Settings → Environment Variables) : `NEWSAPI_KEY`, `ADMIN_TOKEN`, `NEWSAPI_CACHE`, `NEWSAPI_CACHE_TTL`, `PREFER_REGION`.
+2. Ajoutez les **Environment Variables** (Project → Settings → Environment Variables) : `NEWSAPI_KEY`, `ADMIN_TOKEN`, `NEWSAPI_CACHE`, `NEWSAPI_CACHE_TTL`, `PREFER_REGION`. Optionnel: `NEWSAPI_LOOKBACK_DAYS` (default: 30) pour limiter la fenêtre de recherche NewsAPI si votre plan la restreint.
 3. (Optionnel) Créez un token personnel Vercel : https://vercel.com/account/tokens — vous en aurez besoin pour la CI.
 4. Si vous souhaitez un déploiement automatique via GitHub Actions, ajoutez ces **Repository Secrets** (Settings → Secrets & variables → Actions) : `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`.
 
