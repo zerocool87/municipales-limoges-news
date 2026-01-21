@@ -445,8 +445,34 @@ app.get('/api/news', async (req, res) => {
   }
   allArticles = deduped;
 
+  // Additional canonical-key dedupe (sort words of cleaned title so order differences don't prevent grouping)
+  const canonicalMap = new Map();
+  function canonicalKeyFromTitle(t){
+    const s = normalizeForDedupe(t || '');
+    const words = s.split(/\s+/).filter(Boolean).sort();
+    return words.join(' ');
+  }
+  for(const it of allArticles){
+    const key = canonicalKeyFromTitle(it.title || '');
+    const arr = canonicalMap.get(key) || [];
+    arr.push(it);
+    canonicalMap.set(key, arr);
+  }
+  const finalByCanonical = [];
+  const canonicalGroups = [];
+  for(const [k, arr] of canonicalMap.entries()){
+    if(arr.length === 1){ finalByCanonical.push(arr[0]); continue; }
+    const chosen = preferArticle(arr);
+    finalByCanonical.push(chosen);
+    canonicalGroups.push({ key: k, titles: arr.map(x => x.title), chosen: chosen.title, sources: arr.map(x => x.source) });
+  }
+  // keep articles that had no canonical duplicates
+  const singles = Array.from(canonicalMap.entries()).filter(([k, arr]) => arr.length === 1).map(([k, arr]) => arr[0]);
+  allArticles = finalByCanonical.concat(singles).filter(Boolean);
+
   // attach dedupe debug info later if requested
-  const dedupeDebug = dedupeGroups;
+  const dedupeDebug = { titleGroups: dedupeGroups, canonicalGroups };
+
 
   // 7. Deduplicate by exact URL to remove strict duplicates
   const seen = new Set();
