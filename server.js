@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import Parser from 'rss-parser';
 import fs from 'fs/promises';
+import { RSS_FEEDS, ALTERNATIVE_FEEDS as LIB_ALTERNATIVE_FEEDS } from './lib/news.js';
 
 dotenv.config();
 
@@ -23,35 +24,7 @@ const NEWSAPI_CACHE = (process.env.NEWSAPI_CACHE || 'false') === 'true';
 const NEWSAPI_CACHE_TTL = parseInt(process.env.NEWSAPI_CACHE_TTL || '30', 10); // minutes
 let newsApiCache = { articles: null, timestamp: 0 };
 
-// RSS feeds used as fallback (no API key required) — focus on French / regional sources
-// Note: some local sites no longer expose stable RSS at the previous URLs; we include a Google News search RSS as a reliable fallback.
-const RSS_FEEDS = [
-  // Google News search RSS targeting Limoges municipales 2026 (reliable)
-    { url: 'https://news.google.com/rss/search?q=Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr', name: 'Google News (Limoges municipales 2026)' },
-    { url: 'https://www.francebleu.fr/rss/infos.xml', name: 'France Bleu' },
-    
-    // Local and regional sources with strong Limoges coverage
-    { url: 'https://news.google.com/rss/search?q=site:lepopulaire.fr+Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr', name: 'Google News (Le Populaire - Limoges)' },
-    { url: 'https://news.google.com/rss/search?q=site:lepopulaire.fr+Haute-Vienne+municipales+2026&hl=fr&gl=FR&ceid=FR:fr', name: 'Google News (Le Populaire - Haute-Vienne)' },
-    { url: 'https://news.google.com/rss/search?q=site:lamontagne.fr+Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr', name: 'Google News (La Montagne - Limoges)' },
-    { url: 'https://news.google.com/rss/search?q=site:actu.fr+Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr', name: 'Google News (Actu.fr - Limoges)' },
-
-    // Local political / institutional feeds
-    { url: 'https://87.pcf.fr/rss.xml', name: 'PCF 87 (Parti Communiste Français)' },
-    { url: 'https://limousin.eelv.fr/feed/', name: 'EELV Limousin' },
-    { url: 'http://republicains87.fr/feed/', name: 'Les Républicains 87 (Fédération)' },
-    { url: 'https://www.haute-vienne.fr/rss.xml', name: 'Conseil Départemental Haute-Vienne' },
-
-    // Official Limoges city website (replaced by Google News site search to avoid 403/404)
-    { url: 'https://news.google.com/rss/search?q=site:limoges.fr+Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr', name: 'Google News (Ville de Limoges)' },
-    
-    // More specific regional / department feeds
-    { url: 'https://www.francebleu.fr/rss/infos/limousin.xml', name: 'France Bleu Limousin' },
-
-    // Google News searches for specific electoral coverage
-    { url: 'https://news.google.com/rss/search?q=élections+municipales+Limoges+2026&hl=fr&gl=FR&ceid=FR:fr', name: 'Google News (élections municipales)' },
-    { url: 'https://news.google.com/rss/search?q=municipales+Limoges+candidats&hl=fr&gl=FR&ceid=FR:fr', name: 'Google News (candidats Limoges)' }
-];
+// RSS_FEEDS imported from lib/news.js for consistency with Vercel production
 
 const parser = new Parser();
 // In-memory blacklist for feeds that repeatedly fail (prevents log spam)
@@ -89,22 +62,8 @@ async function writeRemovedTags(arr){
   }catch(e){ console.warn('writeRemovedTags failed', e && e.message ? e.message : e); }
 }
 
-// Alternative feeds to try when a feed is blacklisted (site-specific Google News searches)
-const ALTERNATIVE_FEEDS = {
-  'limoges.fr': [
-    'https://news.google.com/rss/search?q=site:limoges.fr+Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr',
-    'https://news.google.com/rss/search?q=Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr'
-  ],
-  'lamontagne.fr': [
-    'https://news.google.com/rss/search?q=site:lamontagne.fr+Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr'
-  ],
-  'francebleu.fr': [
-    'https://news.google.com/rss/search?q=site:francebleu.fr+Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr'
-  ],
-  'lepopulaire.fr': [
-    'https://news.google.com/rss/search?q=site:lepopulaire.fr+Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr'
-  ]
-};
+// Alternative feeds imported from lib/news.js as LIB_ALTERNATIVE_FEEDS
+const ALTERNATIVE_FEEDS = LIB_ALTERNATIVE_FEEDS;
 
 // Sources / hosts to exclude from results (case-insensitive). Add domains or source names here to block.
 const BLOCKED_SOURCES = ['france info'];
