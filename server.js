@@ -173,10 +173,41 @@ function getMatches(text){
 // (removed temporary haute-vienne-only strict filter)
 
 // Strict match: require Limoges (text or source) and at least one declared candidate OR an election keyword (e.g. "municipales", "élection")
-// This function accepts an optional context object { source, url, publishedAt } to use as evidence
+// This function accepts an optional context object { source, url, publishedAt, title, description } to use as evidence
+// Excludes articles mentioning other departments/regions (Normandie, Dordogne 24, etc.)
 function isStrictMatch(matches, context = {}){
   if(!matches || matches.length === 0) return false;
   const norm = matches.map(m => normalizeText(m));
+  
+  // Full text for exclusion check (title + description + source + url)
+  const fullText = normalizeText(
+    (context.title || '') + ' ' + 
+    (context.description || '') + ' ' + 
+    (context.source || '') + ' ' + 
+    (context.url || '')
+  );
+
+  // Exclude articles mentioning other departments/regions (blacklist)
+  const excludeRegions = [
+    'normandie', 'bretagne', 'alsace', 'lorraine', 'bourgogne', 'franche-comte', 'franche comte',
+    'occitanie', 'provence', 'corse', 'rhone alpes', 'rhone-alpes', 'auvergne rhone',
+    'ile de france', 'ile-de-france', 'paris', 'lyon', 'marseille', 'toulouse', 'bordeaux', 'nantes',
+    'strasbourg', 'montpellier', 'nice', 'rennes', 'lille', 'reims',
+    // Départements limitrophes mais hors Haute-Vienne
+    'dordogne', '24420', '24', // Dordogne
+    'correze', '19', 'tulle', 'brive', // Corrèze
+    'creuse', '23', 'gueret', // Creuse
+    'charente', '16', 'angouleme', // Charente
+    'vienne', '86', 'poitiers', 'chatellerault', // Vienne (attention à ne pas confondre avec Haute-Vienne)
+    'indre', '36', 'chateauroux' // Indre
+  ];
+  
+  // Check if article mentions excluded regions
+  if (excludeRegions.some(r => fullText.includes(r))) {
+    // Exception: if it also clearly mentions Limoges/Haute-Vienne, keep it
+    const hasStrongLocalEvidence = fullText.includes('limoges') || fullText.includes('haute vienne') || fullText.includes('haute-vienne') || fullText.includes(' 87 ') || fullText.includes('87000') || fullText.includes('87100');
+    if (!hasStrongLocalEvidence) return false;
+  }
 
   // check text matches
   let hasLimoges = norm.some(n => n.includes('limoges'));
@@ -309,7 +340,12 @@ app.get('/api/news', async (req, res) => {
 
   // 5. Apply strict filtering (Limoges + election keywords) if requested
   if (strict) {
-    allArticles = allArticles.filter(a => isStrictMatch(a.matches || [], { source: a.source, url: a.url }));
+    allArticles = allArticles.filter(a => isStrictMatch(a.matches || [], { 
+      source: a.source, 
+      url: a.url, 
+      title: a.title, 
+      description: a.description 
+    }));
   }
 
   // 6. Remove Google News wrappers when a direct source exists for the same title

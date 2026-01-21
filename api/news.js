@@ -155,7 +155,12 @@ export default async function handler(req, res){
 
     // 5. Apply strict filtering (Limoges + election keywords) if requested
     if (strict) {
-      allArticles = allArticles.filter(a => isStrictMatch(a.matches || [], { source: a.source, url: a.url }));
+      allArticles = allArticles.filter(a => isStrictMatch(a.matches || [], { 
+        source: a.source, 
+        url: a.url, 
+        title: a.title, 
+        description: a.description 
+      }));
     }
 
     // 6a. Remove Google News wrappers when a direct source exists for the same title
