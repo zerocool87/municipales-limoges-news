@@ -17,3 +17,5 @@ Added generic alternative feed for lepopulaire.fr: https://news.google.com/rss/s
 Failed to fetch feed https://actu.fr/feeds/limoges.rss Status code 404 (failure 3/3)
 Added generic alternative feed for actu.fr: https://news.google.com/rss/search?q=site:actu.fr+Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr
 Failed to fetch feed https://www.lemonde.fr/rss/une.xml request to https://www.lemonde.fr/rss/une.xml failed, reason: Client network socket disconnected before secure TLS connection was established (failure 1/3)
+Failed to fetch feed https://www.francetvinfo.fr/titres.rss request to https://www.franceinfo.fr/titres.rss failed, reason: Client network socket disconnected before secure TLS connection was established (failure 1/3)
+Failed to fetch feed https://www.francetvinfo.fr/titres.rss request to https://www.franceinfo.fr/titres.rss failed, reason: Client network socket disconnected before secure TLS connection was established (failure 2/3)

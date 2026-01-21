@@ -61,6 +61,7 @@
     const refreshBtn = document.getElementById('refresh');
     const langEl = document.getElementById('lang');
     const filterMaudetBtn = document.getElementById('filter-maudet');
+    let suppressSelectChange = false; // prevent select change handler from overriding programmatic toggles
 
     function showToast(msg, timeout = 3000){
       try{
@@ -186,7 +187,11 @@
         const opt = selectEl.options[selectEl.selectedIndex];
         button.innerHTML = (opt ? opt.textContent : 'Toutes les villes') + ' <span class="cb-arrow">▾</span>';
         ul.querySelectorAll('.cb-option').forEach(li => { const sel = li.getAttribute('data-value') === v; li.classList.toggle('selected', sel); li.setAttribute('aria-selected', sel ? 'true' : 'false'); });
-        activeFilter = v || null; applyFilter();
+        // respect suppressSelectChange flag: if true, update visual only and do not override activeFilter
+        if(!suppressSelectChange){
+          activeFilter = v || null;
+          applyFilter();
+        }
       });
 
       // initialize
@@ -199,11 +204,16 @@
     if (filterMaudetBtn){
       filterMaudetBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        // toggle Maudet filter
-        if (activeFilter && normalizeString(activeFilter) === 'maudet') { activeFilter = null; } else { activeFilter = 'maudet'; }
-        // reset town selector when toggling Maudet
-        if(filterTownEl) filterTownEl.value = '';
-        if(filterTownEl) filterTownEl.dispatchEvent(new Event('change'));
+        // compute toggled value
+        const toggled = (activeFilter && normalizeString(activeFilter) === 'maudet') ? null : 'maudet';
+        // clear the select visually without letting its change handler override our toggled value
+        if(filterTownEl){
+          suppressSelectChange = true;
+          filterTownEl.value = '';
+          filterTownEl.dispatchEvent(new Event('change'));
+          suppressSelectChange = false;
+        }
+        activeFilter = toggled;
         applyFilter();
       });
     }
@@ -335,12 +345,17 @@
         if(activeFilterEl){ activeFilterEl.style.display = 'none'; activeFilterEl.innerHTML = ''; }
       } else {
         const target = normalForm(activeFilter);
-        const filtered = currentArticles.filter(a => (a.matches || []).some(m => normalForm(m) === target));
+        // Special-case 'maudet' filter: match any tag that contains 'maudet' (e.g., 'damien maudet')
+        const filtered = currentArticles.filter(a => (a.matches || []).some(m => {
+          const nm = normalForm(m);
+          if (target === 'maudet') return nm.includes('maudet');
+          return nm === target;
+        }));
         if(activeFilterEl){
           activeFilterEl.style.display = 'inline-block';
           activeFilterEl.innerHTML = `Filtre: <strong>${escapeHtml(activeFilter)}</strong> — ${filtered.length} article(s) <button id="clear-filter">✖</button>`;
         }
-        const sliced = filtered.slice(0,50);
+        const sliced = filtered.slice(0,100);
         renderArticles(sliced);
         renderedList = sliced;
       }
