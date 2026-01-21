@@ -1,5 +1,65 @@
-import { getMatches, fetchRssFeeds, readRemovedTags, normalizeTextSimple, isStrictMatch } from '../lib/news.js';
+import { getMatches, fetchRssFeeds, readRemovedTags, normalizeTextSimple, isStrictMatch, normalizeText } from '../lib/news.js';
 import fetch from 'node-fetch';
+
+// Near-duplicate title deduplication helpers
+function titleKey(title){ return (normalizeText(title||'')||'').replace(/[^a-z0-9]+/g,' ').trim(); }
+function wordsOfTitle(t){ return (titleKey(t)||'').split(/\s+/).filter(Boolean); }
+const preferredHosts = ['lepopulaire.fr','francebleu.fr','lamontagne.fr','actu.fr','france3','lepopulaire','francebleu','lamontagne'];
+const candidateNames = ['damien maudet','maudet','émile roger lombertie','emile roger lombertie','lombertie','emile roger','yoann balestrat','balestrat','hervé beaudet','herve beaudet','beaudet'];
+
+function findCandidatesInTitle(t){
+  const s = (t || '').toLowerCase();
+  return candidateNames.filter(c => s.includes(c));
+}
+
+function isSimilarTitle(a, b){
+  // if titles mention different candidates, do not treat as similar
+  const ca = findCandidatesInTitle(a.title);
+  const cb = findCandidatesInTitle(b.title);
+  if (ca.length > 0 && cb.length > 0){
+    // if both mention candidates and they differ, consider distinct
+    if (!ca.some(x => cb.includes(x))) return false;
+  }
+
+  const wa = new Set(wordsOfTitle(a.title || ''));
+  const wb = new Set(wordsOfTitle(b.title || ''));
+  if (wa.size === 0 || wb.size === 0) return false;
+  const inter = [...wa].filter(w => wb.has(w)).length;
+  const minLen = Math.min(wa.size, wb.size);
+  return (inter / Math.max(1, minLen)) >= 0.6; // threshold: 60%
+}
+
+function preferArticle(arr){
+  // score: preferred host -> +100, non-google url -> +50, more matches -> +20 each, longer description -> +1 per char, newer -> +timestamp score
+  const scoreFor = (it) => {
+    const hostScore = preferredHosts.some(h => (it.source||'').toLowerCase().includes(h)) ? 100 : 0;
+    const nonGoogle = (it.url && !it.url.includes('news.google.com')) ? 50 : 0;
+    const matchesScore = (it.matches || []).length * 20;
+    const descLen = (it.description || '').length;
+    const timeScore = it.publishedAt ? new Date(it.publishedAt).getTime() / 1e12 : 0;
+    return hostScore + nonGoogle + matchesScore + descLen + timeScore;
+  };
+  return arr.slice().sort((a,b) => scoreFor(b) - scoreFor(a))[0];
+}
+
+function deduplicateSimilarTitles(articles){
+  const deduped = [];
+  const usedIdx = new Set();
+  for (let i = 0; i < articles.length; i++){
+    if (usedIdx.has(i)) continue;
+    const a = articles[i];
+    const group = [a];
+    usedIdx.add(i);
+    for (let j = i + 1; j < articles.length; j++){
+      if (usedIdx.has(j)) continue;
+      const b = articles[j];
+      if (isSimilarTitle(a, b)) { group.push(b); usedIdx.add(j); }
+    }
+    const chosen = group.length > 1 ? preferArticle(group) : a;
+    deduped.push(chosen);
+  }
+  return deduped;
+}
 
 export default async function handler(req, res){
   try{
@@ -98,7 +158,29 @@ export default async function handler(req, res){
       allArticles = allArticles.filter(a => isStrictMatch(a.matches || [], { source: a.source, url: a.url }));
     }
 
-    // 6. Deduplicate by URL
+    // 6a. Remove Google News wrappers when a direct source exists for the same title
+    const grouped = new Map();
+    for(const a of allArticles){
+      const key = titleKey(a.title || '');
+      const arr = grouped.get(key) || [];
+      arr.push(a);
+      grouped.set(key, arr);
+    }
+    const cleaned = [];
+    for(const [k, arr] of grouped.entries()){
+      if(arr.length === 1){ cleaned.push(arr[0]); continue; }
+      // prefer an article that is not a Google wrapper and/or whose source matches preferred hosts
+      let preferred = arr.find(x => x.url && !x.url.includes('news.google.com') && preferredHosts.some(h => (x.source||'').toLowerCase().includes(h)));
+      if(!preferred) preferred = arr.find(x => x.url && !x.url.includes('news.google.com'));
+      if(!preferred) preferred = arr[0];
+      cleaned.push(preferred);
+    }
+    allArticles = cleaned;
+
+    // 6b. Deduplicate near-duplicate titles across sources (Radio France vs France Bleu)
+    allArticles = deduplicateSimilarTitles(allArticles);
+
+    // 7. Deduplicate by URL
     const seen = new Set();
     allArticles = allArticles.filter(a => {
       if (!a.url) return true;

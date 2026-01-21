@@ -1,0 +1,19 @@
+nohup: les entrées sont ignorées
+
+> ai-news-today@0.1.0 start
+> node server.js
+
+Server running on http://localhost:3000
+Failed to fetch feed https://www.lepopulaire.fr/limoges/feed/ Status code 404 (failure 1/3)
+Failed to fetch feed https://www.lamontagne.fr/limoges/rss.xml Status code 404 (failure 1/3)
+Failed to fetch feed https://actu.fr/feeds/limoges.rss Status code 404 (failure 1/3)
+Failed to fetch feed https://www.lepopulaire.fr/limoges/feed/ Status code 404 (failure 2/3)
+Failed to fetch feed https://actu.fr/feeds/limoges.rss Status code 404 (failure 2/3)
+Failed to fetch feed https://www.lamontagne.fr/limoges/rss.xml Status code 404 (failure 2/3)
+Failed to fetch feed https://www.lamontagne.fr/limoges/rss.xml Status code 404 (failure 3/3)
+Added generic alternative feed for lamontagne.fr: https://news.google.com/rss/search?q=site:lamontagne.fr+Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr
+Failed to fetch feed https://www.lepopulaire.fr/limoges/feed/ Status code 404 (failure 3/3)
+Added generic alternative feed for lepopulaire.fr: https://news.google.com/rss/search?q=site:lepopulaire.fr+Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr
+Failed to fetch feed https://actu.fr/feeds/limoges.rss Status code 404 (failure 3/3)
+Added generic alternative feed for actu.fr: https://news.google.com/rss/search?q=site:actu.fr+Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr
+Failed to fetch feed https://www.lemonde.fr/rss/une.xml request to https://www.lemonde.fr/rss/une.xml failed, reason: Client network socket disconnected before secure TLS connection was established (failure 1/3)

@@ -1,0 +1,6 @@
+
+ name                       value               environments        created    
+ NEWSAPI_CACHE_TTL          Encrypted           ]8;;https://vercel.com/zerocool87s-projects/test/settings/environments/ProductionProduction]8;;          14s ago    
+ NEWSAPI_CACHE              Encrypted           ]8;;https://vercel.com/zerocool87s-projects/test/settings/environments/ProductionProduction]8;;          15s ago    
+ NEWSAPI_KEY                Encrypted           ]8;;https://vercel.com/zerocool87s-projects/test/settings/environments/ProductionProduction]8;;          16s ago    
+
