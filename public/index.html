@@ -19,6 +19,25 @@
     <div class="controls">
       <button id="refresh">🔄 Rafraîchir</button>
       <button id="filter-maudet" title="Mettre en évidence Maudet">🔎 Maudet</button>
+      <label for="filter-town" class="visually-hidden">Filtrer par ville</label>
+      <!-- keep the native select for accessibility but hide it; custom listbox provides the visual style -->
+      <select id="filter-town" title="Filtrer par ville" aria-hidden="true" style="position:absolute;left:-9999px;top:auto;opacity:0;pointer-events:none;">
+        <option value="">Toutes les villes</option>
+        <option value="limoges">Limoges</option>
+        <option value="saint-junien">Saint-Junien</option>
+        <option value="panazol">Panazol</option>
+        <option value="couzeix">Couzeix</option>
+        <option value="isle">Isle</option>
+        <option value="feytiat">Feytiat</option>
+        <option value="condat-sur-vienne">Condat-sur-Vienne</option>
+        <option value="le palais sur vienne">Le Palais-sur-Vienne</option>
+      </select>
+
+      <!-- Custom cyberpunk-styled listbox (keeps keyboard support) -->
+      <div id="custom-town-listbox" class="custom-listbox" role="listbox" tabindex="0" aria-label="Filtrer par ville">
+        <button class="cb-selected" aria-haspopup="listbox" aria-expanded="false">Toutes les villes <span class="cb-arrow">▾</span></button>
+        <ul class="cb-options" role="presentation" hidden></ul>
+      </div>
       <select id="lang">
         <option value="fr">Français</option>
         <option value="en">Anglais</option>
@@ -118,12 +137,80 @@
     }
 
     refreshBtn.addEventListener('click', loadNews);
+    const filterTownEl = document.getElementById('filter-town');
+
+    // initialize custom listbox UI that syncs with the native select
+    function initCustomTownListbox(selectEl){
+      if(!selectEl) return;
+      const box = document.getElementById('custom-town-listbox');
+      const button = box.querySelector('.cb-selected');
+      const ul = box.querySelector('.cb-options');
+
+      // build options
+      ul.innerHTML = '';
+      Array.from(selectEl.options).forEach(opt => {
+        const li = document.createElement('li');
+        li.className = 'cb-option';
+        li.tabIndex = -1;
+        li.setAttribute('data-value', opt.value);
+        li.setAttribute('role', 'option');
+        li.textContent = opt.textContent;
+        ul.appendChild(li);
+      });
+
+      function close(){ ul.hidden = true; box.classList.remove('open'); button.setAttribute('aria-expanded','false'); }
+      function open(){ ul.hidden = false; box.classList.add('open'); button.setAttribute('aria-expanded','true'); const sel = ul.querySelector('.cb-option.selected'); if(sel) sel.focus(); }
+
+      button.addEventListener('click', (e)=>{ e.preventDefault(); if(ul.hidden) open(); else close(); });
+
+      ul.addEventListener('click', (e)=>{
+        const li = e.target.closest('.cb-option'); if(!li) return;
+        selectEl.value = li.getAttribute('data-value'); selectEl.dispatchEvent(new Event('change'));
+        close();
+      });
+
+      // keyboard handling for accessibility
+      box.addEventListener('keydown', (e)=>{
+        const openKeys = ['Enter',' ','ArrowDown'];
+        if(openKeys.includes(e.key) && ul.hidden){ e.preventDefault(); open(); return; }
+        if(e.key === 'Escape'){ close(); button.focus(); return; }
+        const focused = document.activeElement; if(!ul.contains(focused)) return;
+        if(e.key === 'ArrowDown'){ e.preventDefault(); const next = focused.nextElementSibling || ul.firstElementChild; if(next) next.focus(); }
+        if(e.key === 'ArrowUp'){ e.preventDefault(); const prev = focused.previousElementSibling || ul.lastElementChild; if(prev) prev.focus(); }
+        if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); focused.click(); }
+      });
+
+      // keep native select in sync and apply filter when changed
+      selectEl.addEventListener('change', ()=>{
+        const v = selectEl.value || '';
+        const opt = selectEl.options[selectEl.selectedIndex];
+        button.innerHTML = (opt ? opt.textContent : 'Toutes les villes') + ' <span class="cb-arrow">▾</span>';
+        ul.querySelectorAll('.cb-option').forEach(li => { const sel = li.getAttribute('data-value') === v; li.classList.toggle('selected', sel); li.setAttribute('aria-selected', sel ? 'true' : 'false'); });
+        activeFilter = v || null; applyFilter();
+      });
+
+      // initialize
+      selectEl.dispatchEvent(new Event('change'));
+
+      // close when clicking outside
+      document.addEventListener('click', (e)=>{ if(!box.contains(e.target)) close(); });
+    }
+
     if (filterMaudetBtn){
       filterMaudetBtn.addEventListener('click', (e) => {
         e.preventDefault();
+        // toggle Maudet filter
         if (activeFilter && normalizeString(activeFilter) === 'maudet') { activeFilter = null; } else { activeFilter = 'maudet'; }
+        // reset town selector when toggling Maudet
+        if(filterTownEl) filterTownEl.value = '';
+        if(filterTownEl) filterTownEl.dispatchEvent(new Event('change'));
         applyFilter();
       });
+    }
+
+    // Town filter listbox: set activeFilter to selected town or clear
+    if(filterTownEl){
+      initCustomTownListbox(filterTownEl);
     }
 
 
@@ -239,6 +326,7 @@
       renderRemovedTags();
     }
 
+    function normalForm(s){ return (normalizeString(s)||'').replace(/[^a-z0-9]+/g,''); }
     function applyFilter(){
       let renderedList = [];
       if(!activeFilter){
@@ -246,7 +334,8 @@
         renderedList = currentArticles;
         if(activeFilterEl){ activeFilterEl.style.display = 'none'; activeFilterEl.innerHTML = ''; }
       } else {
-        const filtered = currentArticles.filter(a => (a.matches || []).some(m => normalizeString(m) === normalizeString(activeFilter)));
+        const target = normalForm(activeFilter);
+        const filtered = currentArticles.filter(a => (a.matches || []).some(m => normalForm(m) === target));
         if(activeFilterEl){
           activeFilterEl.style.display = 'inline-block';
           activeFilterEl.innerHTML = `Filtre: <strong>${escapeHtml(activeFilter)}</strong> — ${filtered.length} article(s) <button id="clear-filter">✖</button>`;
@@ -271,7 +360,18 @@
       const tagSpan = t.closest('.tag');
       if(!tagSpan) return;
       const match = tagSpan.getAttribute('data-match');
-      activeFilter = match; applyFilter();
+      activeFilter = match;
+      // if the match corresponds to a town option, set the hidden select (and dispatch change so custom UI updates)
+      try{
+        if(filterTownEl){
+          const norm = normalForm(match);
+          let found = false;
+          for(const opt of filterTownEl.options){ if(normalForm(opt.value) === norm){ filterTownEl.value = opt.value; found = true; break } }
+          if(!found) filterTownEl.value = '';
+          filterTownEl.dispatchEvent(new Event('change'));
+        }
+      }catch(_){ }
+      applyFilter();
     });
 
     // Restore-all UI removed — no button handler needed.
