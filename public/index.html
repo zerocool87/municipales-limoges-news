@@ -18,6 +18,7 @@
 
     <div class="controls">
       <button id="refresh">🔄 Rafraîchir</button>
+      <button id="filter-maudet" title="Mettre en évidence Maudet">🔎 Maudet</button>
       <select id="lang">
         <option value="fr">Français</option>
         <option value="en">Anglais</option>
@@ -40,6 +41,7 @@
     const updatedEl = document.getElementById('updated');
     const refreshBtn = document.getElementById('refresh');
     const langEl = document.getElementById('lang');
+    const filterMaudetBtn = document.getElementById('filter-maudet');
 
     function showToast(msg, timeout = 3000){
       try{
@@ -116,6 +118,13 @@
     }
 
     refreshBtn.addEventListener('click', loadNews);
+    if (filterMaudetBtn){
+      filterMaudetBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (activeFilter && normalizeString(activeFilter) === 'maudet') { activeFilter = null; } else { activeFilter = 'maudet'; }
+        applyFilter();
+      });
+    }
 
 
     // Autoload: sync removed tags first, then fetch news
@@ -210,7 +219,8 @@
         li.className = 'article';
         const matchesHtml = (a.matches && a.matches.length) ? a.matches.map(m => {
           const isRemoved = removedTagsHas(m);
-          const cls = isRemoved ? 'tag removed' : ((a.primaryMatch && normalizeString(m) === normalizeString(a.primaryMatch)) ? 'tag primary' : 'tag');
+          let cls = isRemoved ? 'tag removed' : ((a.primaryMatch && normalizeString(m) === normalizeString(a.primaryMatch)) ? 'tag primary' : 'tag');
+          if (normalizeString(m).includes('maudet')) cls += ' maudet';
           const label = escapeHtml(m);
           return `<span class="${cls}" data-match="${escapeHtml(m)}"><span class="label">${label}</span></span>`;
         }).join(' ') : '';
@@ -221,6 +231,9 @@
           ${matchesHtml ? `<div class="matches">${matchesHtml}</div>` : ''}
           <p class="desc">${escapeHtml(a.description || '')}</p>
         `;
+        // add highlight class if this article mentions Maudet
+        const isMaudet = (a.matches || []).some(m => normalizeString(m).includes('maudet') || normalizeString(m) === 'maudet');
+        if (isMaudet) li.classList.add('maudet');
         articlesEl.appendChild(li);
       }
       renderRemovedTags();
