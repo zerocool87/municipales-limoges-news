@@ -179,6 +179,7 @@ const KEYWORDS = [
   
   // Location terms (strict: include Limoges, Haute-Vienne and variants)
   'limoges','haute-vienne','haute vienne','hautevienne','limousin',
+  'isle','feytiat','le palais sur vienne','le palais-sur-vienne',
   
   // Year
   '2026',
@@ -238,7 +239,7 @@ function isStrictMatch(matches, context = {}){
   const src = (context.source || '') || '';
   const url = (context.url || '') || '';
   const srcNorm = normalizeText(src + ' ' + url);
-  const townKeys = ['saint junien','saint-junien','panazol','couzeix','malemort','condat-sur-vienne'];
+  const townKeys = ['saint junien','saint-junien','panazol','couzeix','malemort','condat-sur-vienne','isle','feytiat','le palais sur vienne','le palais-sur-vienne'];
   const hasRegionInSource = srcNorm.includes('limoges') || srcNorm.includes('limousin') || srcNorm.includes('haute vienne') || srcNorm.includes('haute-vienne') || srcNorm.includes('87') || townKeys.some(t => srcNorm.includes(t));
   if (hasRegionInSource) hasLimoges = true;
 
