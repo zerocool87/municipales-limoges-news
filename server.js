@@ -234,12 +234,18 @@ function isStrictMatch(matches, context = {}){
   const electionKeys = ['municipales','municipale','élection municipale','élection','election','élections','elections','scrutin','vote'];
   const hasElection = electionKeys.some(k => norm.some(n => n.includes(normalizeText(k))));
 
-  // also consider source or url as evidence of Limoges/region
+  // also consider source or url as evidence of region (include town names)
   const src = (context.source || '') || '';
   const url = (context.url || '') || '';
   const srcNorm = normalizeText(src + ' ' + url);
-  const hasRegionInSource = srcNorm.includes('limoges') || srcNorm.includes('limousin') || srcNorm.includes('haute vienne') || srcNorm.includes('haute-vienne') || srcNorm.includes('87');
+  const townKeys = ['saint junien','panazol','couzeix','malemort','condat-sur-vienne'];
+  const hasRegionInSource = srcNorm.includes('limoges') || srcNorm.includes('limousin') || srcNorm.includes('haute vienne') || srcNorm.includes('haute-vienne') || srcNorm.includes('87') || townKeys.some(t => srcNorm.includes(t));
   if (hasRegionInSource) hasLimoges = true;
+
+  // also consider matches containing town names as region evidence
+  if (!hasLimoges){
+    if (townKeys.some(t => norm.some(n => n.includes(normalizeText(t))))) hasLimoges = true;
+  }
 
   // Require Limoges (or region in source) AND (either a candidate OR an election-related keyword)
   return hasLimoges && (hasCandidate || hasElection);
