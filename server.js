@@ -437,7 +437,7 @@ app.get('/api/news', async (req, res) => {
     for (let j = i + 1; j < allArticles.length; j++){
       if (usedIdx.has(j)) continue;
       const b = allArticles[j];
-      if (isSimilarTitle(a, b)) { group.push(b); usedIdx.add(j); }
+      if (normalizeForDedupe(a.title || '') === normalizeForDedupe(b.title || '') || isSimilarTitle(a, b)) { group.push(b); usedIdx.add(j); }
     }
     const chosen = group.length > 1 ? preferArticle(group) : a;
     deduped.push(chosen);
