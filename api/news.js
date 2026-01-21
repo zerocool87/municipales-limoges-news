@@ -64,7 +64,7 @@ function deduplicateSimilarTitles(articles){
 export default async function handler(req, res){
   try{
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-    const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 50);
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 200);
     // strict mode: require Limoges + election-related keyword (municipales/élection) by default
     // Also allow ?strict=true/false query param to override
     const strictParam = url.searchParams.get('strict');

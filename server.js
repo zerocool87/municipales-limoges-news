@@ -260,7 +260,7 @@ async function fetchRssFeeds(limit = 20, debug = false) {
 }
 
 app.get('/api/news', async (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+  const limit = Math.min(parseInt(req.query.limit) || 20, 200);
   // strict mode: require Limoges + election-related keyword (municipales/élection) by default
   // Also allow ?strict=true/false query param to override
   const strictParam = req.query.strict;
