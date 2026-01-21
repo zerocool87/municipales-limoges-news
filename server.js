@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import Parser from 'rss-parser';
 import fs from 'fs/promises';
+import { normalizeTextSimple, normalizeUrlForDedup, normalizeTitleForDedup } from './lib/news.js';
 
 dotenv.config();
 
@@ -195,7 +196,7 @@ const KEYWORDS = [
   'belle vie','renaissance','renaissance citoyenne'
 ];
 function normalizeText(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
-function normalizeTextSimple(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+// normalizeTextSimple is imported from './lib/news.js' and provides consistent normalization across the app.
 
 // Returns the list of matching keywords found in the provided text
 function getMatches(text){
@@ -410,13 +411,20 @@ app.get('/api/news', async (req, res) => {
     allArticles = allArticles.filter(a => isStrictMatch(a.matches || [], { source: a.source, url: a.url }));
   }
 
-  // 6. Deduplicate by URL
-  const seen = new Set();
+  // 6. Deduplicate by normalized URL and title (robust against tracking params / amp / mirrors)
+  const seenUrls = new Set();
+  const seenTitles = new Set();
   allArticles = allArticles.filter(a => {
-    if (!a.url) return true;
-    const normalizedUrl = a.url.toLowerCase().replace(/\/$/, '');
-    if (seen.has(normalizedUrl)) return false;
-    seen.add(normalizedUrl);
+    if (a.url){
+      const nu = normalizeUrlForDedup(a.url);
+      if (nu && seenUrls.has(nu)) return false;
+      if (nu) seenUrls.add(nu);
+    }
+    if (a.title){
+      const nt = normalizeTitleForDedup(a.title);
+      if (nt && seenTitles.has(nt)) return false;
+      if (nt) seenTitles.add(nt);
+    }
     return true;
   });
 

@@ -1,4 +1,4 @@
-import { getMatches, fetchRssFeeds, readRemovedTags, normalizeTextSimple, isStrictMatch } from '../lib/news.js';
+import { getMatches, fetchRssFeeds, readRemovedTags, normalizeTextSimple, isStrictMatch, normalizeUrlForDedup, normalizeTitleForDedup } from '../lib/news.js';
 import fetch from 'node-fetch';
 
 export default async function handler(req, res){
@@ -98,13 +98,22 @@ export default async function handler(req, res){
       allArticles = allArticles.filter(a => isStrictMatch(a.matches || [], { source: a.source, url: a.url }));
     }
 
-    // 6. Deduplicate by URL
-    const seen = new Set();
+    // 6. Deduplicate by normalized URL and title (robust against tracking params / amp / mirrors)
+    const seenUrls = new Set();
+    const seenTitles = new Set();
     allArticles = allArticles.filter(a => {
-      if (!a.url) return true;
-      const normalizedUrl = a.url.toLowerCase().replace(/\/$/, '');
-      if (seen.has(normalizedUrl)) return false;
-      seen.add(normalizedUrl);
+      // URL-based dedupe
+      if (a.url){
+        const nu = normalizeUrlForDedup(a.url);
+        if (nu && seenUrls.has(nu)) return false;
+        if (nu) seenUrls.add(nu);
+      }
+      // Title-based dedupe (fallback when same content published on different URLs)
+      if (a.title){
+        const nt = normalizeTitleForDedup(a.title);
+        if (nt && seenTitles.has(nt)) return false;
+        if (nt) seenTitles.add(nt);
+      }
       return true;
     });
 
