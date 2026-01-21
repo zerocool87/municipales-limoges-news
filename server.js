@@ -367,6 +367,47 @@ app.get('/api/news', async (req, res) => {
   }
   allArticles = cleaned;
 
+  // 6b. Deduplicate near-duplicate titles across sources (e.g., Radio France vs France Bleu)
+  function wordsOfTitle(t){ return (titleKey(t)||'').split(/\s+/).filter(Boolean); }
+  function isSimilarTitle(a, b){
+    const wa = new Set(wordsOfTitle(a.title || ''));
+    const wb = new Set(wordsOfTitle(b.title || ''));
+    if (wa.size === 0 || wb.size === 0) return false;
+    const inter = [...wa].filter(w => wb.has(w)).length;
+    const minLen = Math.min(wa.size, wb.size);
+    return (inter / Math.max(1, minLen)) >= 0.6; // threshold: 60%
+  }
+
+  function preferArticle(arr){
+    // score: preferred host -> +100, non-google url -> +50, more matches -> +20 each, longer description -> +1 per char, newer -> +timestamp score
+    const scoreFor = (it) => {
+      const hostScore = preferredHosts.some(h => (it.source||'').toLowerCase().includes(h)) ? 100 : 0;
+      const nonGoogle = (it.url && !it.url.includes('news.google.com')) ? 50 : 0;
+      const matchesScore = (it.matches || []).length * 20;
+      const descLen = (it.description || '').length;
+      const timeScore = it.publishedAt ? new Date(it.publishedAt).getTime() / 1e12 : 0;
+      return hostScore + nonGoogle + matchesScore + descLen + timeScore;
+    };
+    return arr.slice().sort((a,b) => scoreFor(b) - scoreFor(a))[0];
+  }
+
+  const deduped = [];
+  const usedIdx = new Set();
+  for (let i = 0; i < allArticles.length; i++){
+    if (usedIdx.has(i)) continue;
+    const a = allArticles[i];
+    const group = [a];
+    usedIdx.add(i);
+    for (let j = i + 1; j < allArticles.length; j++){
+      if (usedIdx.has(j)) continue;
+      const b = allArticles[j];
+      if (isSimilarTitle(a, b)) { group.push(b); usedIdx.add(j); }
+    }
+    const chosen = group.length > 1 ? preferArticle(group) : a;
+    deduped.push(chosen);
+  }
+  allArticles = deduped;
+
   // 7. Deduplicate by exact URL to remove strict duplicates
   const seen = new Set();
   allArticles = allArticles.filter(a => {
