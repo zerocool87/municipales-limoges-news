@@ -19,10 +19,14 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 const NEWSAPI_KEY = process.env.NEWSAPI_KEY;
+const NEWSAPI_ENABLED = (process.env.NEWSAPI_ENABLED !== 'false') && NEWSAPI_KEY; // Disable with NEWSAPI_ENABLED=false
 // Optional NewsAPI caching: set NEWSAPI_CACHE=true to enable (30 min default)
 const NEWSAPI_CACHE = (process.env.NEWSAPI_CACHE || 'false') === 'true';
 const NEWSAPI_CACHE_TTL = parseInt(process.env.NEWSAPI_CACHE_TTL || '30', 10); // minutes
 let newsApiCache = { articles: null, timestamp: 0 };
+
+console.log('[INFO] NEWSAPI_KEY loaded:', NEWSAPI_KEY ? 'YES' : 'NO');
+console.log('[INFO] NEWSAPI enabled:', NEWSAPI_ENABLED ? 'YES' : 'NO');
 
 // RSS_FEEDS imported from lib/news.js for consistency with Vercel production
 
@@ -184,7 +188,7 @@ app.get('/api/news', async (req, res) => {
     return EXCLUDED_SOURCES.some(s => url.includes(s) || source.includes(s) || title.includes(s) || description.includes(s));
   };
 
-  if (NEWSAPI_KEY) {
+  if (NEWSAPI_ENABLED) {
     try {
       const q = encodeURIComponent('"municipales Limoges 2026" OR "élections municipales Limoges 2026" OR "municipales Limoges" OR "élections municipales Limoges" OR (Limoges AND (municipales OR élections OR mairie OR candidats OR 2026))');
       const NEWSAPI_LOOKBACK_DAYS = parseInt(process.env.NEWSAPI_LOOKBACK_DAYS || '30', 10);
@@ -196,8 +200,18 @@ app.get('/api/news', async (req, res) => {
       let accumulated = [];
       for (let page = 1; page <= pagesNeeded; page++) {
         const urlApi = `https://newsapi.org/v2/everything?q=${q}&from=${from}&sortBy=publishedAt&pageSize=${pageSize}&page=${page}&language=fr&apiKey=${NEWSAPI_KEY}`;
-        const r = await fetch(urlApi);
-        const data = await r.json();
+        let data;
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+          const r = await fetch(urlApi, { signal: controller.signal });
+          const text = await r.text();
+          clearTimeout(timeoutId);
+          data = JSON.parse(text);
+        } catch (fetchErr) {
+          console.warn(`NewsAPI page ${page} fetch failed:`, fetchErr.name === 'AbortError' ? 'timeout' : fetchErr.message);
+          break;
+        }
         if (data.status !== 'ok' || !(data.articles || []).length) break;
         const mapped = (data.articles || []).map(a => {
           const title = a.title;
