@@ -146,7 +146,7 @@ async function fetchRssFeeds(limit = 20, debug = false) {
 }
 
 app.get('/api/news', async (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit) || 20, 200);
+  const limit = Math.min(parseInt(req.query.limit) || 200, 500);
   // strict mode: require Limoges + election-related keyword (municipales/élection) by default
   // Also allow ?strict=true/false query param to override
   const strictParam = req.query.strict;
@@ -347,12 +347,36 @@ app.get('/api/news', async (req, res) => {
     return dateB - dateA;
   });
 
-  // 8. Return results
+  // Group articles by month (YYYY-MM)
+  const monthlyArticles = {};
+  const monthOrder = [];
+  
+  for (const a of allArticles) {
+    if (!a.publishedAt) continue;
+    const d = new Date(a.publishedAt);
+    const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    
+    if (!monthlyArticles[monthKey]) {
+      monthlyArticles[monthKey] = [];
+      monthOrder.push(monthKey);
+    }
+    monthlyArticles[monthKey].push(a);
+  }
+  
+  // Limit articles per month and keep total at ~50
+  const articlesPerMonth = Math.max(5, Math.ceil(limit / Math.max(1, monthOrder.length)));
+  for (const month of monthOrder) {
+    monthlyArticles[month] = monthlyArticles[month].slice(0, articlesPerMonth);
+  }
+
+  // 10. Return results
   const finalArticles = allArticles.slice(0, limit);
   
   if (finalArticles.length === 0) {
     return res.json({ 
       articles: [], 
+      monthlyArticles: {},
+      months: [],
       source: sources.join('+') || 'none', 
       strict, 
       note: 'No matching articles found.' 
@@ -361,6 +385,8 @@ app.get('/api/news', async (req, res) => {
 
   return res.json({ 
     articles: finalArticles, 
+    monthlyArticles,
+    months: monthOrder,
     source: sources.join('+'), 
     strict,
     count: finalArticles.length,

@@ -5,13 +5,17 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#071021" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <title>20 dernières news — Municipales Limoges 2026</title>
+  <title>200 dernières news — Municipales Limoges 2026</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
   <main>
-    <h1>📰 20 dernières news — Municipales Limoges 2026</h1>
+    <h1>📰 200 dernières news — Municipales Limoges 2026</h1>
     <p class="subtitle">Dernière mise à jour: <span id="updated">–</span> • <small class="info">Articles ≤ 1 mois, triés du plus récent au moins récent</small></p>
+
+    <!-- Month tabs for pagination -->
+    <div id="month-tabs" class="month-tabs" role="tablist" aria-label="Filtrer par mois">
+    </div>
 
     <div id="newsapi-banner" class="banner" role="status" aria-live="polite" hidden>
       <span id="newsapi-banner-text"></span>
@@ -64,6 +68,11 @@
     const langEl = document.getElementById('lang');
     const filterMaudetBtn = document.getElementById('filter-maudet');
     let suppressSelectChange = false; // prevent select change handler from overriding programmatic toggles
+    
+    // Month pagination
+    let monthlyArticles = {};
+    let availableMonths = [];
+    let currentMonth = null; // null means show all articles
 
     function showToast(msg, timeout = 3000){
       try{
@@ -89,6 +98,10 @@
         if (!res.ok) throw new Error('Erreur réseau');
         const json = await res.json();
         const articles = json.articles || [];
+        
+        // Store monthly articles and months
+        monthlyArticles = json.monthlyArticles || {};
+        availableMonths = json.months || [];
 
         // If server capped the NewsAPI window, inform the user with a toast and a persistent banner
         try{
@@ -114,12 +127,14 @@
         if (articles.length === 0) {
           statusEl.textContent = "Aucun article trouvé pour les municipales Limoges 2026.";
           updatedEl.textContent = new Date().toLocaleString();
+          updateMonthTabs();
           if (notify) showToast('Recherche mise à jour — 0 articles');
           return;
         }
 
         // store current articles and render
         currentArticles = articles;
+        updateMonthTabs();
 
         statusEl.textContent = '';
         updatedEl.textContent = new Date().toLocaleString();
@@ -348,15 +363,22 @@
 
     function normalForm(s){ return (normalizeString(s)||'').replace(/[^a-z0-9]+/g,''); }
     function applyFilter(){
+      let list = [...currentArticles];
+      
+      // Filter by month if selected
+      if (currentMonth && monthlyArticles[currentMonth]) {
+        list = monthlyArticles[currentMonth];
+      }
+      
       let renderedList = [];
       if(!activeFilter){
-        renderArticles(currentArticles);
-        renderedList = currentArticles;
+        renderArticles(list);
+        renderedList = list;
         if(activeFilterEl){ activeFilterEl.style.display = 'none'; activeFilterEl.innerHTML = ''; }
       } else {
         const target = normalForm(activeFilter);
         // Special-case 'maudet' filter: match any tag that contains 'maudet' (e.g., 'damien maudet')
-        const filtered = currentArticles.filter(a => (a.matches || []).some(m => {
+        const filtered = list.filter(a => (a.matches || []).some(m => {
           const nm = normalForm(m);
           if (target === 'maudet') return nm.includes('maudet');
           return nm === target;
@@ -406,6 +428,44 @@
     const bannerClose = document.getElementById('newsapi-banner-close');
     if(bannerClose){
       bannerClose.addEventListener('click', (e)=>{ e.preventDefault(); try{ const b = document.getElementById('newsapi-banner'); if(b){ b.hidden = true; b.classList.remove('visible'); } }catch(_){}});
+    }
+
+    // Month tabs management
+    function updateMonthTabs() {
+      const tabsContainer = document.getElementById('month-tabs');
+      if (!tabsContainer) return;
+      tabsContainer.innerHTML = '';
+      
+      // "All months" tab
+      const allBtn = document.createElement('button');
+      allBtn.textContent = 'Tous les mois';
+      allBtn.role = 'tab';
+      allBtn.setAttribute('aria-selected', currentMonth === null);
+      allBtn.className = currentMonth === null ? 'active' : '';
+      allBtn.addEventListener('click', () => {
+        currentMonth = null;
+        applyFilter();
+        updateMonthTabs();
+      });
+      tabsContainer.appendChild(allBtn);
+      
+      // Month tabs
+      for (const month of availableMonths) {
+        const btn = document.createElement('button');
+        const [year, monthNum] = month.split('-');
+        const date = new Date(year, parseInt(monthNum) - 1, 1);
+        const label = date.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long' });
+        btn.textContent = label;
+        btn.role = 'tab';
+        btn.setAttribute('aria-selected', currentMonth === month);
+        btn.className = currentMonth === month ? 'active' : '';
+        btn.addEventListener('click', () => {
+          currentMonth = month;
+          applyFilter();
+          updateMonthTabs();
+        });
+        tabsContainer.appendChild(btn);
+      }
     }
   </script>
 </body>

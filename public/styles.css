@@ -245,3 +245,12 @@ h1{animation: flicker 3s linear infinite}
 .toast.visible{opacity:1;transform:translateY(0)}
 body.light .toast{background:rgba(255,255,255,0.95);color:var(--text);box-shadow:0 8px 24px rgba(0,0,0,0.06)}
 
+/* Month tabs for pagination */
+.month-tabs{display:flex;gap:.4rem;margin-top:calc(1rem + 8px);margin-bottom:1.5rem;overflow-x:auto;padding-bottom:.5rem;flex-wrap:wrap}
+.month-tabs button{padding:.5rem 1rem;border:1px solid rgba(0,240,255,0.2);background:transparent;color:var(--muted);border-radius:6px;cursor:pointer;font-family:inherit;font-size:.9rem;transition:all .18s ease;white-space:nowrap}
+.month-tabs button:hover{border-color:rgba(0,240,255,0.5);color:var(--neon-blue)}
+.month-tabs button.active{background:linear-gradient(90deg,rgba(0,240,255,0.1),rgba(255,45,166,0.05));border-color:var(--neon-blue);color:var(--neon-blue);box-shadow:0 0 12px rgba(0,240,255,0.15)}
+body.light .month-tabs button{border-color:rgba(11,92,255,0.2);color:var(--muted)}
+body.light .month-tabs button:hover{border-color:rgba(11,92,255,0.5);color:var(--neon-blue)}
+body.light .month-tabs button.active{background:linear-gradient(90deg,rgba(11,92,255,0.08),rgba(255,45,166,0.04));border-color:var(--neon-blue);color:var(--neon-blue);box-shadow:0 0 12px rgba(11,92,255,0.1)}
+
