@@ -189,13 +189,17 @@ app.get('/api/news', async (req, res) => {
       const q = encodeURIComponent('"municipales Limoges 2026" OR "élections municipales Limoges 2026" OR "municipales Limoges" OR "élections municipales Limoges" OR (Limoges AND (municipales OR élections OR mairie OR candidats OR 2026))');
       const NEWSAPI_LOOKBACK_DAYS = parseInt(process.env.NEWSAPI_LOOKBACK_DAYS || '30', 10);
       const from = new Date(Date.now() - NEWSAPI_LOOKBACK_DAYS * 24 * 3600 * 1000).toISOString().split('T')[0];
-      const urlApi = `https://newsapi.org/v2/everything?q=${q}&from=${from}&sortBy=publishedAt&pageSize=${limit}&language=fr&apiKey=${NEWSAPI_KEY}`;
-      
-      const r = await fetch(urlApi);
-      const data = await r.json();
-      
-      if (data.status === 'ok' && (data.articles || []).length > 0) {
-        const newsapiArticles = (data.articles || []).map(a => {
+
+      // NewsAPI limits pageSize to 100, so request multiple pages when limit > 100
+      const pageSize = 100;
+      const pagesNeeded = Math.ceil(limit / pageSize);
+      let accumulated = [];
+      for (let page = 1; page <= pagesNeeded; page++) {
+        const urlApi = `https://newsapi.org/v2/everything?q=${q}&from=${from}&sortBy=publishedAt&pageSize=${pageSize}&page=${page}&language=fr&apiKey=${NEWSAPI_KEY}`;
+        const r = await fetch(urlApi);
+        const data = await r.json();
+        if (data.status !== 'ok' || !(data.articles || []).length) break;
+        const mapped = (data.articles || []).map(a => {
           const title = a.title;
           const description = a.description;
           let matches = getMatches((title || '') + ' ' + (description || ''));
@@ -210,11 +214,14 @@ app.get('/api/news', async (req, res) => {
             primaryMatch 
           };
         }).filter(a => a.matches && a.matches.length > 0 && !isExcludedSource(a));
+        accumulated.push(...mapped);
+        if (accumulated.length >= limit) break;
+      }
 
-        if (newsapiArticles.length > 0) {
-          sources.push('newsapi');
-          allArticles.push(...newsapiArticles);
-        }
+      const newsapiArticles = accumulated.slice(0, limit);
+      if (newsapiArticles.length > 0) {
+        sources.push('newsapi');
+        allArticles.push(...newsapiArticles);
       }
     } catch(e) { 
       console.warn('NewsAPI fetch failed:', e && e.message ? e.message : e); 
