@@ -6,7 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import Parser from 'rss-parser';
 import fs from 'fs/promises';
-import { RSS_FEEDS, ALTERNATIVE_FEEDS as LIB_ALTERNATIVE_FEEDS } from './lib/news.js';
+import { RSS_FEEDS, ALTERNATIVE_FEEDS as LIB_ALTERNATIVE_FEEDS, getMatches, isStrictMatch, normalizeTextSimple } from './lib/news.js';
 
 dotenv.config();
 
@@ -58,7 +58,8 @@ async function readRemovedTags(){
 async function writeRemovedTags(arr){
   try{
     await ensureDataDir();
-    await fs.writeFile(REMOVED_TAGS_FILE, JSON.stringify(Array.from(new Set(arr)), null, 2), 'utf8');
+    const norm = Array.from(new Set((arr || []).map(normalizeTextSimple).filter(Boolean)));
+    await fs.writeFile(REMOVED_TAGS_FILE, JSON.stringify(norm, null, 2), 'utf8');
   }catch(e){ console.warn('writeRemovedTags failed', e && e.message ? e.message : e); }
 }
 
@@ -126,139 +127,16 @@ async function handleFeedFailure(url, name, reason){
   }
 }
 
-// Keywords to identify articles about Limoges municipales elections (including 2026)
-// Includes declared candidates to ensure their mentions are captured
-const KEYWORDS = [
-  // Core electoral terms
-  'municipales','municipale','élection','election','élections','elections',
-  'scrutin','vote','campagne','candidat','candidats','candidature',
-  'investiture','tête de liste','défilé','meeting','débat',
-  'sondage','résultats','bulletin','suffrage',
-  'mairie','conseil municipal','dépôt candidature',
-  
-  // Location terms (strict: include Limoges, Haute-Vienne and variants)
-  'limoges','haute-vienne','haute vienne','hautevienne','limousin',
-  'isle','feytiat','le palais sur vienne','le palais-sur-vienne',
-  
-  // Year
-  '2026',
-  
-  // Declared candidates / political figures
-  'damien maudet','maudet',
-  'émile roger lombertie','emile roger lombertie','lombertie','emile roger',
-  'guillaume guérin','guillaume guerin','guerin',
-  'thierry miguel','miguel',
-  'vincent léonie','vincent leonie','leonie',
-  
-  // Topics specific to elections
-  'programme élection','enjeux élection','campagne municipale','coalition',
-  'belle vie','renaissance','renaissance citoyenne'
-];
-function normalizeText(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
-function normalizeTextSimple(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+// Matching keywords are centralized in `lib/news.js` - use `getMatches` and `isStrictMatch` from there for consistent behavior across RSS and NewsAPI.
+// Use normalization helpers exported from `lib/news.js` (we import `normalizeTextSimple` in this file).
 
 // Returns the list of matching keywords found in the provided text
-function getMatches(text){
-  const n = normalizeText(text);
-  const found = [];
-  for(const k of KEYWORDS){
-    const nk = normalizeText(k);
-    if(nk && n.includes(nk)) found.push(k);
-  }
-  // return unique list preserving order
-  return [...new Set(found)];
-}
+// Use `getMatches` from `lib/news.js` (imported at top) for consistent keyword matching.
 
 // Strict filter: require at least one electoral keyword AND one haute-vienne keyword
 // (removed temporary haute-vienne-only strict filter)
 
-// Strict match: require Limoges (text or source) and at least one declared candidate OR an election keyword (e.g. "municipales", "élection")
-// This function accepts an optional context object { source, url, publishedAt, title, description } to use as evidence
-// Excludes articles mentioning other departments/regions (Normandie, Dordogne 24, etc.)
-function isStrictMatch(matches, context = {}){
-  if(!matches || matches.length === 0) return false;
-  const norm = matches.map(m => normalizeText(m));
-  
-  // Full text for exclusion check (title + description + source + url)
-  const fullText = normalizeText(
-    (context.title || '') + ' ' + 
-    (context.description || '') + ' ' + 
-    (context.source || '') + ' ' + 
-    (context.url || '')
-  );
-
-  // Exclude articles mentioning other departments/regions (blacklist)
-  const excludeRegions = [
-    'normandie', 'bretagne', 'alsace', 'lorraine', 'bourgogne', 'franche-comte', 'franche comte',
-    'occitanie', 'provence', 'corse', 'rhone alpes', 'rhone-alpes', 'auvergne rhone',
-    'ile de france', 'ile-de-france', 'paris', 'lyon', 'marseille', 'toulouse', 'bordeaux', 'nantes',
-    'strasbourg', 'montpellier', 'nice', 'rennes', 'lille', 'reims',
-    // Départements limitrophes mais hors Haute-Vienne
-    'dordogne', '24420', '24', 'perigueux', 'bergerac', 'sarlat', 'sarliac', // Dordogne
-    'correze', '19', 'tulle', 'brive', 'brive la gaillarde', 'brive-la-gaillarde', 'malemort', 'ussel', 'egletons', // Corrèze
-    'creuse', '23', 'gueret', 'aubusson', // Creuse
-    'charente', '16', 'angouleme', 'cognac', // Charente
-    'vienne', '86', 'poitiers', 'chatellerault', 'loudun', // Vienne (attention à ne pas confondre avec Haute-Vienne)
-    'indre', '36', 'chateauroux', 'issoudun', // Indre
-    'deux sevres', 'deux-sevres', '79', 'niort', // Deux-Sèvres
-    'charente maritime', 'charente-maritime', '17', 'la rochelle', 'rochefort', 'saintes', // Charente-Maritime
-    'lot et garonne', 'lot-et-garonne', '47', 'agen', // Lot-et-Garonne
-    'gironde', '33', 'bordeaux', // Gironde (pour être sûr)
-    'puy de dome', 'puy-de-dome', '63', 'clermont-ferrand', // Puy-de-Dôme
-    'allier', '03', 'moulins', 'montlucon', // Allier
-    'cantal', '15', 'aurillac' // Cantal
-  ];
-  
-  // Check if TITLE or DESCRIPTION mentions excluded regions
-  const titleAndDesc = normalizeText(
-    (context.title || '') + ' ' + (context.description || '')
-  );
-  if (excludeRegions.some(r => titleAndDesc.includes(r))) {
-    // Exception: if title/description also clearly mentions Limoges/Haute-Vienne, keep it
-    // (don't just rely on source/URL which may generically mention "Limoges municipales")
-    const hasStrongLocalEvidenceInContent = titleAndDesc.includes('limoges') || titleAndDesc.includes('haute vienne') || titleAndDesc.includes('haute-vienne') || titleAndDesc.includes(' 87 ') || titleAndDesc.includes('87000') || titleAndDesc.includes('87100');
-    if (!hasStrongLocalEvidenceInContent) return false;
-  }
-
-  // check text matches
-  let hasLimoges = norm.some(n => n.includes('limoges'));
-
-  const candidateKeys = [
-    'damien maudet','maudet',
-    'émile roger lombertie','emile roger lombertie','lombertie','emile roger',
-    'guillaume guérin','guillaume guerin','guerin',
-    'thierry miguel','miguel',
-    'vincent léonie','vincent leonie','leonie'
-  ];
-  const hasCandidate = candidateKeys.some(c => norm.some(n => n.includes(normalizeText(c))));
-
-  // election-related keywords (allow matches like "municipales", "élection")
-  const electionKeys = ['municipales','municipale','élection municipale','élection','election','élections','elections','scrutin','vote'];
-  const hasElection = electionKeys.some(k => norm.some(n => n.includes(normalizeText(k))));
-
-  // also consider source or url as evidence of region (include town names)
-  const src = (context.source || '') || '';
-  const url = (context.url || '') || '';
-  const srcNorm = normalizeText(src + ' ' + url);
-  const townKeys = [
-    'saint junien','saint-junien','panazol','couzeix','condat-sur-vienne','condat sur vienne',
-    'isle','feytiat','le palais sur vienne','le palais-sur-vienne','ambazac','aixe sur vienne',
-    'aixe-sur-vienne','saint-leonard','saint leonard','rochechouart','bellac','eymoutiers',
-    'saint-yrieix','saint yrieix','nexon','nieul','verneuil','rilhac rancon','rilhac-rancon',
-    'pierre-buffiere','pierre buffiere','solignac','boisseuil','saint-laurent',
-    'saint laurent','bonnac la cote','bonnac-la-cote'
-  ];
-  const hasRegionInSource = srcNorm.includes('limoges') || srcNorm.includes('limousin') || srcNorm.includes('haute vienne') || srcNorm.includes('haute-vienne') || srcNorm.includes('87') || townKeys.some(t => srcNorm.includes(t));
-  if (hasRegionInSource) hasLimoges = true;
-
-  // also consider matches containing town names as region evidence
-  if (!hasLimoges){
-    if (townKeys.some(t => norm.some(n => n.includes(normalizeText(t))))) hasLimoges = true;
-  }
-
-  // Require Limoges (or region in source) AND (either a candidate OR an election-related keyword)
-  return hasLimoges && (hasCandidate || hasElection);
-}
+// Use `isStrictMatch` from `lib/news.js` (imported at top) for consistent strict matching.
 
 // Delegate RSS fetching to shared implementation in lib/news.js
 async function fetchRssFeeds(limit = 20, debug = false) {
@@ -379,7 +257,7 @@ app.get('/api/news', async (req, res) => {
   }
 
   // 7. Remove Google News wrappers when a direct source exists for the same title
-  function titleKey(title){ return (normalizeText(title||'')||'').replace(/[^a-z0-9]+/g,' ').trim(); }
+  function titleKey(title){ return (normalizeTextSimple(title||'')||'').replace(/[^a-z0-9]+/g,' ').trim(); }
   const preferredHosts = ['lepopulaire.fr','francebleu.fr','lamontagne.fr','actu.fr','france3','lepopulaire','francebleu','lamontagne'];
   const grouped = new Map();
   for(const a of allArticles){
@@ -403,15 +281,14 @@ app.get('/api/news', async (req, res) => {
   function wordsOfTitle(t){ return (titleKey(t)||'').split(/\s+/).filter(Boolean); }
   function isSimilarTitle(a, b){
     // if titles mention different candidates, do not treat as similar
-    const candidateNames = ['damien maudet','maudet','émile roger lombertie','emile roger lombertie','lombertie','emile roger','yoann balestrat','balestrat','hervé beaudet','herve beaudet','beaudet'];
+    const candidateNames = ['damien maudet','maudet','émile roger lombertie','emile roger lombertie','lombertie','emile roger','yoann balestrat','balestrat','hervé beaudet','herve beaudet','beaudet'].map(normalizeTextSimple);
     function findCandidatesInTitle(t){
-      const s = (t || '').toLowerCase();
+      const s = normalizeTextSimple(t || '');
       return candidateNames.filter(c => s.includes(c));
     }
     const ca = findCandidatesInTitle(a.title);
     const cb = findCandidatesInTitle(b.title);
     if (ca.length > 0 && cb.length > 0){
-      // if both mention candidates and they differ, consider distinct
       if (!ca.some(x => cb.includes(x))) return false;
     }
 
@@ -507,8 +384,8 @@ app.get('/api/filters', async (req, res) => {
 app.post('/api/filters', async (req, res) => {
   try{
     const { action, tag } = req.body || {};
-    const normalized = (tag || '').toString();
-    const current = new Set(await readRemovedTags());
+    const normalized = normalizeTextSimple((tag || '').toString());
+    const current = new Set((await readRemovedTags()).map(normalizeTextSimple));
 
     if(action === 'add'){
       if(normalized) current.add(normalized);
@@ -516,7 +393,7 @@ app.post('/api/filters', async (req, res) => {
       return res.json({ ok: true, removed: Array.from(current) });
     }
     if(action === 'remove'){
-      if(normalized){ current.delete(normalized); current.delete(normalized.toLowerCase()); }
+      if(normalized){ current.delete(normalized); }
       await writeRemovedTags(Array.from(current));
       return res.json({ ok: true, removed: Array.from(current) });
     }
@@ -560,7 +437,7 @@ async function fetchAndParseFeed(url, limit = 5){
     const xml = await resp.text();
     const feed = await parser.parseString(xml);
     const fileRemoved = (await readRemovedTags()).map(r => normalizeTextSimple(r));
-    const removedSet = new Set([...fileRemoved, 'municipal'].map(r => normalizeTextSimple(r)));
+    const removedSet = new Set(fileRemoved.map(r => normalizeTextSimple(r)));
 
     const items = (feed.items || []).slice(0, limit).map(it => {
       const title = it.title;
