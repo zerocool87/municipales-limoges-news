@@ -1,10 +1,3 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const loginPath = path.join(__dirname, '../../public/login.html');
-
 export default async (req, res) => {
   // CORS headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -17,13 +10,71 @@ export default async (req, res) => {
   }
 
   if (req.method === 'GET') {
-    try {
-      const html = fs.readFileSync(loginPath, 'utf-8');
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      return res.status(200).send(html);
-    } catch (e) {
-      return res.status(404).json({ ok: false, error: 'login.html not found' });
-    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.status(200).send(`<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connexion administrateur</title>
+  <link rel="stylesheet" href="/login.css">
+</head>
+<body>
+  <div class="login-card">
+    <div class="login-header">
+      <p class="eyebrow">Accès admin</p>
+      <h1>Connexion</h1>
+      <p class="lead">Identifiez-vous pour gérer les flux.</p>
+    </div>
+    <form class="login-form" action="/admin/login" method="POST">
+      <div>
+        <label for="username">Nom d'utilisateur ou e-mail</label>
+        <input id="username" name="username" type="text" autocomplete="username" required>
+      </div>
+      <div>
+        <label for="password">Mot de passe</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <button type="submit">Se connecter</button>
+    </form>
+    <p id="login-status" class="helper">Besoin d'aide ? Contactez l'administrateur.</p>
+  </div>
+
+  <script>
+    const form = document.querySelector('.login-form');
+    const statusEl = document.getElementById('login-status');
+    const submitBtn = form.querySelector('button[type="submit"]');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      statusEl.textContent = 'Connexion en cours...';
+      submitBtn.disabled = true;
+      try {
+        const res = await fetch('/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+          credentials: 'include'
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Échec de connexion');
+        // Save JWT token from response
+        if(data.token) {
+          localStorage.setItem('auth_token', data.token);
+        }
+        statusEl.textContent = 'Connexion réussie, redirection...';
+        window.location.href = '/admin.html';
+      } catch (err) {
+        statusEl.textContent = err.message || 'Erreur inconnue';
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>`);
   }
 
   res.status(405).json({ ok: false, error: 'Method not allowed' });
