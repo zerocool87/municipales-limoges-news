@@ -25,7 +25,7 @@ export default async (req, res) => {
 </head>
 <body>
   <main>
-    <h1>Municipales 2026 News V2 <span id="article-count">(0)</span></h1>
+    <h1>Municipales 2026 News V3 <span id="article-count">(0)</span></h1>
     <p class="subtitle">Dernière mise à jour: <span id="updated">–</span></p>
     <div id="month-tabs" class="month-tabs"></div>
     <div class="controls">
