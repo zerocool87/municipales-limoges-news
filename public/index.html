@@ -44,16 +44,6 @@
         <button class="cb-selected" aria-haspopup="listbox" aria-expanded="false">Toutes les villes <span class="cb-arrow">▾</span></button>
         <ul class="cb-options" role="presentation" hidden></ul>
       </div>
-      <select id="lang">
-        <option value="fr">Français</option>
-        <option value="en">Anglais</option>
-        <option value="all">Toutes langues</option>
-      </select>
-      <label for="theme" class="visually-hidden">Thème</label>
-      <select id="theme" aria-label="Sélecteur de thème">
-        <option value="dark">Sombre</option>
-        <option value="light">Clair</option>
-      </select>
       <div id="active-filter" class="active-filter" hidden></div>
     </div>
     <div id="status">Chargement des dernières news municipales (Limoges 2026)...</div>
@@ -65,7 +55,6 @@
     const articlesEl = document.getElementById('articles');
     const updatedEl = document.getElementById('updated');
     const refreshBtn = document.getElementById('refresh');
-    const langEl = document.getElementById('lang');
     const filterMaudetBtn = document.getElementById('filter-maudet');
     let suppressSelectChange = false; // prevent select change handler from overriding programmatic toggles
     
@@ -90,11 +79,9 @@
       const notify = opts.notify === true;
       statusEl.textContent = 'Chargement…';
       articlesEl.innerHTML = '';
-      const lang = langEl.value;
-      const langParam = lang === 'all' ? '' : `&lang=${lang}`;
 
       try {
-        const res = await fetch(`/api/news?limit=200${langParam}`);
+        const res = await fetch(`/api/news?limit=200`);
         if (!res.ok) throw new Error('Erreur réseau');
         const json = await res.json();
         const articles = json.articles || [];
@@ -254,25 +241,6 @@
       await syncRemovedTagsFromServer();
       await loadNews();
     })();
-
-    // Theme selector: persist preference in localStorage and apply
-    const themeEl = document.getElementById('theme');
-    function applyTheme(theme){
-      if(theme === 'light'){
-        document.body.classList.add('light');
-      } else {
-        document.body.classList.remove('light');
-      }
-      try{ localStorage.setItem('theme', theme); }catch(e){}
-    }
-
-    // initialize
-    const savedTheme = (() => {
-      try{ return localStorage.getItem('theme'); }catch(e){ return null }
-    })() || (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
-    applyTheme(savedTheme);
-    if(themeEl) themeEl.value = savedTheme;
-    if(themeEl) themeEl.addEventListener('change', (e)=> applyTheme(e.target.value));
 
     // Filtering and rendering helpers
     let currentArticles = [];
