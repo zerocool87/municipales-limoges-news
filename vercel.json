@@ -1,19 +1,19 @@
 {
   "version": 2,
   "buildCommand": "npm install",
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/login$", "destination": "/api/login" },
-    { "source": "/login.html", "destination": "/api/login" },
-    { "source": "/admin$", "destination": "/api/admin/index" },
-    { "source": "/admin.html", "destination": "/api/admin/index" },
-    { "source": "/admin/login", "destination": "/api/admin/login" },
-    { "source": "/admin/feeds/test", "destination": "/api/admin/feeds/test" },
-    { "source": "/admin/feeds/add", "destination": "/api/admin/feeds/add" },
-    { "source": "/admin/feeds/remove", "destination": "/api/admin/feeds/remove" },
-    { "source": "/admin/feeds/unblacklist", "destination": "/api/admin/feeds/unblacklist" },
-    { "source": "/admin/feeds/update", "destination": "/api/admin/feeds/update" },
-    { "source": "/admin/feeds", "destination": "/api/admin/feeds/index" },
-    { "source": "/(.*)", "destination": "/index.html" }
+  "routes": [
+    { "src": "/login$", "dest": "/api/login.js" },
+    { "src": "/login.html", "dest": "/api/login.js" },
+    { "src": "/admin$", "dest": "/api/admin/index.js" },
+    { "src": "/admin.html", "dest": "/api/admin/index.js" },
+    { "src": "/admin/login", "dest": "/api/admin/login.js", "methods": ["POST", "OPTIONS"] },
+    { "src": "/admin/feeds/test", "dest": "/api/admin/feeds/test.js", "methods": ["POST", "OPTIONS"] },
+    { "src": "/admin/feeds/add", "dest": "/api/admin/feeds/add.js", "methods": ["POST", "OPTIONS"] },
+    { "src": "/admin/feeds/remove", "dest": "/api/admin/feeds/remove.js", "methods": ["POST", "OPTIONS"] },
+    { "src": "/admin/feeds/unblacklist", "dest": "/api/admin/feeds/unblacklist.js", "methods": ["POST", "OPTIONS"] },
+    { "src": "/admin/feeds/update", "dest": "/api/admin/feeds/update.js", "methods": ["POST", "OPTIONS"] },
+    { "src": "/admin/feeds", "dest": "/api/admin/feeds/index.js", "methods": ["GET", "OPTIONS"] },
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
