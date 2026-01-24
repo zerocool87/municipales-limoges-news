@@ -3,6 +3,10 @@
   "buildCommand": "npm install",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/login$", "destination": "/api/login" },
+    { "source": "/login.html", "destination": "/api/login" },
+    { "source": "/admin$", "destination": "/api/admin/index" },
+    { "source": "/admin.html", "destination": "/api/admin/index" },
     { "source": "/admin/login", "destination": "/api/admin/login" },
     { "source": "/admin/feeds/test", "destination": "/api/admin/feeds/test" },
     { "source": "/admin/feeds/add", "destination": "/api/admin/feeds/add" },
