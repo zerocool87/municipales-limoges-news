@@ -1,4 +1,4 @@
-import { RSS_FEEDS, feedFailures, blacklistedFeeds, saveFeeds } from '../../../lib/news.js';
+import { RSS_FEEDS, feedFailures, blacklistedFeeds } from '../../../lib/news.js';
 import { requireAuth } from '../../lib/auth.js';
 
 export default async function handler(req, res) {
@@ -35,10 +35,6 @@ export default async function handler(req, res) {
     }
     feedFailures.delete(url);
     blacklistedFeeds.delete(url);
-    
-    // Save feeds to file for persistence
-    await saveFeeds();
-    
     return res.status(200).json({ ok: true, removed: before - RSS_FEEDS.length });
   } catch (e) {
     return res.status(500).json({ ok: false, error: e.message || String(e) });
