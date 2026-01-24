@@ -2,6 +2,7 @@
   "version": 2,
   "buildCommand": "npm install",
   "routes": [
+    { "src": "^/$", "dest": "/api/index.js" },
     { "src": "/login$", "dest": "/api/login.js" },
     { "src": "/login.html", "dest": "/api/login.js" },
     { "src": "/admin$", "dest": "/api/admin/index.js" },
@@ -14,6 +15,6 @@
     { "src": "/admin/feeds/update", "dest": "/api/admin/feeds/update.js", "methods": ["POST", "OPTIONS"] },
     { "src": "/admin/feeds", "dest": "/api/admin/feeds/index.js", "methods": ["GET", "OPTIONS"] },
     { "src": "/api/(.*)", "dest": "/api/$1" },
-    { "src": "/(.*)", "dest": "/index.html" }
+    { "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|eot))", "dest": "/public/$1" }
   ]
 }
