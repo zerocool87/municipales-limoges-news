@@ -26,19 +26,38 @@ const __dirname = path.dirname(__filename);
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
 const app = express();
+
+// CORS configuration - allow same-origin and credentials
 app.use(cors({
-  origin: true,
-  credentials: true
+  origin: function(origin, callback) {
+    // Allow requests from same origin or from vercel domains
+    if (!origin || 
+        origin === 'http://localhost:3000' ||
+        origin === 'http://localhost' ||
+        origin.includes('vercel.app') ||
+        origin.includes('localhost')) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Allow all origins for now (can be restricted)
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type']
 }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Session configuration
 app.use(session({
   secret: process.env.SESSION_SECRET || 'municipales-limoges-2026-secret-key',
   resave: false,
-  saveUninitialized: false,
+  saveUninitialized: true, // Changed to true to ensure session is created
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.NODE_ENV === 'production', // HTTPS only in production
     httpOnly: true,
+    sameSite: 'lax', // Important pour les cookies cross-site
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 }));
@@ -54,21 +73,41 @@ app.post('/admin/login', (req, res) => {
   const ADMIN_USER = process.env.ADMIN_USER || process.env.ADMIN_USERNAME;
   const ADMIN_PASS = process.env.ADMIN_PASSWORD || process.env.ADMIN_PASS;
 
+  // Debug logging
+  console.log('[LOGIN] Attempting login. User configured:', !!ADMIN_USER, 'Pass configured:', !!ADMIN_PASS);
+
   // If nothing is configured, keep it open for local/dev
   if(!ADMIN_USER && !ADMIN_PASS){
     req.session.authenticated = true;
-    return res.json({ ok: true, mode: 'open' });
+    req.session.save((err) => {
+      if (err) {
+        console.error('[LOGIN] Session save error (dev mode):', err);
+        return res.status(500).json({ ok: false, error: 'session error' });
+      }
+      return res.json({ ok: true, mode: 'open' });
+    });
+    return;
   }
 
   // Validate user/pass
   const { username, password } = req.body || {};
+  console.log('[LOGIN] Received username:', username);
+  
   if(username !== ADMIN_USER || password !== ADMIN_PASS){
+    console.warn('[LOGIN] Authentication failed for user:', username);
     return res.status(401).json({ ok: false, error: 'invalid credentials' });
   }
 
-  // Set session as authenticated
+  // Set session as authenticated and save
   req.session.authenticated = true;
-  return res.json({ ok: true });
+  req.session.save((err) => {
+    if (err) {
+      console.error('[LOGIN] Session save error:', err);
+      return res.status(500).json({ ok: false, error: 'session error' });
+    }
+    console.log('[LOGIN] Authentication successful for user:', username);
+    return res.json({ ok: true });
+  });
 });
 
 // Logout endpoint
