@@ -1,11 +1,10 @@
 {
   "version": 2,
   "buildCommand": "npm install",
-  "public": "public",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/admin(.*)", "destination": "/server.js" },
-    { "source": "/login(.*)", "destination": "/server.js" },
+    { "source": "/admin/login", "destination": "/server.js" },
+    { "source": "/admin/(.*)", "destination": "/server.js" },
     { "source": "/(.*)", "destination": "/server.js" }
   ]
 }
