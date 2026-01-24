@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#071021" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <title>Municipales 2026 News V2</title>
+  <title>Municipales 2026 News V3</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
   <main>
-    <h1>Municipales 2026 News V2</h1>
+    <h1>Municipales 2026 News V3 <span id="article-count">(0)</span></h1>
     <p class="subtitle">Dernière mise à jour: <span id="updated">–</span> • <small class="info">Articles ≤ 1 mois, triés du plus récent au moins récent</small></p>
 
     <!-- Month tabs for pagination -->
@@ -56,6 +56,7 @@
     const updatedEl = document.getElementById('updated');
     const refreshBtn = document.getElementById('refresh');
     const filterMaudetBtn = document.getElementById('filter-maudet');
+    const articleCountEl = document.getElementById('article-count');
     let suppressSelectChange = false; // prevent select change handler from overriding programmatic toggles
     
     // Month pagination
@@ -89,6 +90,11 @@
         // Store monthly articles and months
         monthlyArticles = json.monthlyArticles || {};
         availableMonths = json.months || [];
+        
+        // Update article count
+        if (articleCountEl) {
+          articleCountEl.textContent = '(' + articles.length + ')';
+        }
 
         // If server capped the NewsAPI window, inform the user with a toast and a persistent banner
         try{
