@@ -14,20 +14,6 @@
   --desc: #dbeeff;
 }
 
-/* Light theme overrides applied when body has .light */
-body.light{
-  --bg: #f6f8fb;
-  --bg-accent: radial-gradient(800px 240px at 10% 10%, rgba(11,92,255,0.06), transparent 8%), linear-gradient(180deg,#ffffff 0%, #f3f7fb 60%);
-  --card: #ffffff;
-  --muted: #566371;
-  --neon-pink: #0b5cff; /* accent for light theme */
-  --neon-blue: #0b5cff;
-  --neon-green: #1aab4b;
-  --glass-border: rgba(0,0,0,0.06);
-  --text: #0b1722;
-  --desc: #0b1722;
-}
-
 *{box-sizing:border-box}
 html,body{height:100%}
 body{font-family:system-ui,'Segoe UI',Roboto,Arial,sans-serif; color:var(--text); background:var(--bg-accent), var(--bg); margin:0; padding:1.5rem; transition: background .25s ease, color .2s ease}
@@ -134,79 +120,15 @@ select#filter-town option:hover{ background:rgba(255,255,255,0.03); }
 .article .meta::before{content:'';display:inline-block;width:10px;height:10px;margin-right:.6rem;border-radius:3px;background:linear-gradient(90deg,#ff3b3b 0%,#39ff66 50%,#00f0ff 100%);box-shadow:0 0 8px rgba(255,59,59,0.06), 0 0 12px rgba(57,255,102,0.06), 0 0 18px rgba(0,240,255,0.06)}
 
 /* Light theme: softer multi-color glow */
-body.light .article .meta::before{box-shadow:0 0 6px rgba(255,59,59,0.04), 0 0 10px rgba(57,255,102,0.04), 0 0 14px rgba(11,92,255,0.04)}
-
-/* Match tags */
-.matches{margin:.5rem 0}
-.tag{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  padding:.32rem .75rem;
-  border-radius:6px;
-  font-size:.85rem;
-  font-weight:700;
-  color:var(--text);
-  background:rgba(0,240,255,0.08);
-  margin-right:.6rem;
-  border:1px solid rgba(0,240,255,0.2);
-  box-shadow:0 4px 12px rgba(0,240,255,0.06);
-  cursor:pointer;
-  transition:transform .12s ease, box-shadow .12s ease;
-  text-align:center;
-  position:relative;
-  z-index:6;
-  overflow:hidden;
-  white-space:nowrap;
-  text-overflow:ellipsis;
-}
 .tag{-webkit-tap-highlight-color:rgba(0,0,0,0);touch-action:manipulation}
 @media (hover: hover){
   .tag:hover{filter:brightness(1.02);transform:translateY(-2px);box-shadow:0 6px 16px rgba(2,54,110,0.18)}
 }
 .tag.primary{outline:2px solid rgba(3,50,100,0.18);box-shadow:0 8px 22px rgba(3,50,100,0.18)}
-body.light .tag{background:linear-gradient(90deg,#084a9e,#6ea3ff); color:#fff; box-shadow:none}
-
-/* Removed / restore UI for tags */
-.tag.removed{opacity:0.6;background:linear-gradient(90deg,#222631,#2b3142);color:var(--muted);border-style:dashed}
-
-
-.article.maudet{
-  border:2px solid #ff2da6;
-  box-shadow:0 24px 50px rgba(255,45,166,0.12),0 0 60px rgba(255,45,166,0.06);
-}
 .article.maudet .title{color:var(--neon-pink);text-shadow:0 0 8px rgba(255,45,166,0.1);}
 .tag.maudet{background: linear-gradient(90deg,#ff2da6,#ff7ab0); color: #071021; border:none; box-shadow:0 8px 24px rgba(255,45,166,0.08);}
 
 /* Light theme tweaks for Maudet highlight */
-body.light .article.maudet{ border:1px solid #ff3b3b; box-shadow:none; }
-
-.active-filter{display:inline-block;margin-left:1rem;padding:.35rem .6rem;border-radius:999px;background:rgba(255,255,255,0.04);color:var(--text);border:1px solid var(--glass-border)}
-.active-filter button{background:transparent;border:0;color:var(--muted);margin-left:.6rem;cursor:pointer}
-/* small flicker animation for headings */
-@keyframes flicker {
-  0% {opacity:1}
-  5% {opacity:.85}
-  10% {opacity:1}
-  20% {opacity:.92}
-  100% {opacity:1}
-}
-
-h1{animation: flicker 3s linear infinite}
-
-/* responsive tweaks */
-@media (max-width:800px){
-  body{padding:0.8rem}
-  h1{font-size:1.5rem}
-  .controls{flex-direction:column;align-items:stretch;gap:.5rem;margin-bottom:0.8rem}
-  .controls button, .controls select, .custom-listbox{width:100%;min-width:0;padding:.75rem;box-sizing:border-box}
-  button, .tag{min-height:44px;padding:.6rem 1rem}
-  .custom-listbox .cb-options{max-height:40vh}
-  .article{padding:.9rem;font-size:0.95rem}
-  .matches{display:flex;flex-wrap:wrap;gap:.4rem}
-  .tag{height:auto;min-width:0;padding:.5rem .7rem}
-  main{padding-bottom:6rem}
-}
 
 /* Extra small screens */
 @media (max-width:480px){
@@ -228,14 +150,10 @@ h1{animation: flicker 3s linear infinite}
 /* Toast notification */
 .toast{position:fixed;right:1rem;bottom:1rem;background:rgba(3,15,30,0.9);color:var(--text);padding:.6rem .9rem;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.5);opacity:0;transform:translateY(8px);transition:opacity .18s ease, transform .18s ease;z-index:9999}
 .toast.visible{opacity:1;transform:translateY(0)}
-body.light .toast{background:rgba(255,255,255,0.95);color:var(--text);box-shadow:0 8px 24px rgba(0,0,0,0.06)}
 
 /* Month tabs for pagination */
 .month-tabs{display:flex;gap:.4rem;margin-top:calc(1rem + 8px);margin-bottom:1.5rem;overflow-x:auto;padding-bottom:.5rem;flex-wrap:wrap}
 .month-tabs button{padding:.5rem 1rem;border:1px solid rgba(0,240,255,0.2);background:transparent;color:var(--muted);border-radius:6px;cursor:pointer;font-family:inherit;font-size:.9rem;transition:all .18s ease;white-space:nowrap}
 .month-tabs button:hover{border-color:rgba(0,240,255,0.5);color:var(--neon-blue)}
 .month-tabs button.active{background:linear-gradient(90deg,rgba(0,240,255,0.1),rgba(255,45,166,0.05));border-color:var(--neon-blue);color:var(--neon-blue);box-shadow:0 0 12px rgba(0,240,255,0.15)}
-body.light .month-tabs button{border-color:rgba(11,92,255,0.2);color:var(--muted)}
-body.light .month-tabs button:hover{border-color:rgba(11,92,255,0.5);color:var(--neon-blue)}
-body.light .month-tabs button.active{background:linear-gradient(90deg,rgba(11,92,255,0.08),rgba(255,45,166,0.04));border-color:var(--neon-blue);color:var(--neon-blue);box-shadow:0 0 12px rgba(11,92,255,0.1)}
 
