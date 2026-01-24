@@ -1,8 +1,8 @@
-import { getMatches, fetchRssFeeds, readRemovedTags, normalizeTextSimple, isStrictMatch, normalizeText } from '../lib/news.js';
+import { getMatches, fetchRssFeeds, readRemovedTags, normalizeTextSimple, isStrictMatch } from '../lib/news.js';
 import fetch from 'node-fetch';
 
 // Near-duplicate title deduplication helpers
-function titleKey(title){ return (normalizeText(title||'')||'').replace(/[^a-z0-9]+/g,' ').trim(); }
+function titleKey(title){ return (normalizeTextSimple(title||'')||'').replace(/[^a-z0-9]+/g,' ').trim(); }
 function wordsOfTitle(t){ return (titleKey(t)||'').split(/\s+/).filter(Boolean); }
 const preferredHosts = ['lepopulaire.fr','francebleu.fr','lamontagne.fr','actu.fr','france3','lepopulaire','francebleu','lamontagne'];
 const candidateNames = ['damien maudet','maudet','émile roger lombertie','emile roger lombertie','lombertie','emile roger','yoann balestrat','balestrat','hervé beaudet','herve beaudet','beaudet'];

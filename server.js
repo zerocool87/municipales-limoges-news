@@ -7,6 +7,15 @@ import { fileURLToPath } from 'url';
 import Parser from 'rss-parser';
 import fs from 'fs/promises';
 import { RSS_FEEDS, ALTERNATIVE_FEEDS as LIB_ALTERNATIVE_FEEDS, getMatches, isStrictMatch, normalizeTextSimple } from './lib/news.js';
+import { 
+  deduplicateSimilarTitles, 
+  deduplicateByUrl, 
+  sortByDate, 
+  removeGoogleWrappers, 
+  titleKey,
+  PREFERRED_HOSTS 
+} from './lib/deduplication.js';
+import { fetchWithTimeout, parseJson } from './lib/fetch-utils.js';
 
 dotenv.config();
 
@@ -84,10 +93,11 @@ async function readRemovedTags(){
   try{
     await ensureDataDir();
     const raw = await fs.readFile(REMOVED_TAGS_FILE, 'utf8');
-    return JSON.parse(raw || '[]');
+    const data = raw.trim() || '[]';
+    return JSON.parse(data);
   }catch(e){
     if(e.code === 'ENOENT') return [];
-    console.warn('readRemovedTags failed', e && e.message ? e.message : e);
+    console.warn('readRemovedTags failed:', e.message || String(e));
     return [];
   }
 }
@@ -97,17 +107,21 @@ async function writeRemovedTags(arr){
     await ensureDataDir();
     const norm = Array.from(new Set((arr || []).map(normalizeTextSimple).filter(Boolean)));
     await fs.writeFile(REMOVED_TAGS_FILE, JSON.stringify(norm, null, 2), 'utf8');
-  }catch(e){ console.warn('writeRemovedTags failed', e && e.message ? e.message : e); }
+  }catch(e){ 
+    console.error('writeRemovedTags failed:', e.message || String(e)); 
+    throw e; // Re-throw to let caller handle
+  }
 }
 
 async function readManualFeeds(){
   try{
     await ensureDataDir();
     const raw = await fs.readFile(FEEDS_FILE, 'utf8');
-    return JSON.parse(raw || '[]');
+    const data = raw.trim() || '[]';
+    return JSON.parse(data);
   }catch(e){
     if(e.code === 'ENOENT') return [];
-    console.warn('readManualFeeds failed', e && e.message ? e.message : e);
+    console.warn('readManualFeeds failed:', e.message || String(e));
     return [];
   }
 }
@@ -116,7 +130,10 @@ async function writeManualFeeds(arr){
   try{
     await ensureDataDir();
     await fs.writeFile(FEEDS_FILE, JSON.stringify(arr || [], null, 2), 'utf8');
-  }catch(e){ console.warn('writeManualFeeds failed', e && e.message ? e.message : e); }
+  }catch(e){ 
+    console.error('writeManualFeeds failed:', e.message || String(e)); 
+    throw e; // Re-throw to let caller handle
+  }
 }
 
 let manualFeeds = await readManualFeeds();
@@ -128,10 +145,6 @@ for(const f of manualFeeds){
 
 // Alternative feeds imported from lib/news.js as LIB_ALTERNATIVE_FEEDS
 const ALTERNATIVE_FEEDS = LIB_ALTERNATIVE_FEEDS;
-
-// Sources / hosts to exclude from results (case-insensitive). Add domains or source names here to block.
-const BLOCKED_SOURCES = ['france info'];
-const BLOCKED_HOSTS = ['franceinfo.fr', 'francetvinfo.fr'];
 
 // Try to handle a failing feed: increment failures and, if threshold reached, attempt to add alternatives instead of only blacklisting
 async function handleFeedFailure(url, name, reason){
@@ -261,14 +274,10 @@ app.get('/api/news', async (req, res) => {
         const urlApi = `https://newsapi.org/v2/everything?q=${q}&from=${from}&sortBy=publishedAt&pageSize=${pageSize}&page=${page}&language=fr&apiKey=${NEWSAPI_KEY}`;
         let data;
         try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
-          const r = await fetch(urlApi, { signal: controller.signal });
-          const text = await r.text();
-          clearTimeout(timeoutId);
-          data = JSON.parse(text);
+          const r = await fetchWithTimeout(urlApi, {}, 8000);
+          data = await parseJson(r);
         } catch (fetchErr) {
-          console.warn(`NewsAPI page ${page} fetch failed:`, fetchErr.name === 'AbortError' ? 'timeout' : fetchErr.message);
+          console.warn(`NewsAPI page ${page} fetch failed:`, fetchErr.message);
           break;
         }
         if (data.status !== 'ok' || !(data.articles || []).length) break;
@@ -336,96 +345,17 @@ app.get('/api/news', async (req, res) => {
     }));
   }
 
-  // 7. Remove Google News wrappers when a direct source exists for the same title
-  function titleKey(title){ return (normalizeTextSimple(title||'')||'').replace(/[^a-z0-9]+/g,' ').trim(); }
-  const preferredHosts = ['lepopulaire.fr','francebleu.fr','lamontagne.fr','actu.fr','france3','lepopulaire','francebleu','lamontagne'];
-  const grouped = new Map();
-  for(const a of allArticles){
-    const key = titleKey(a.title || '');
-    const arr = grouped.get(key) || [];
-    arr.push(a);
-    grouped.set(key, arr);
-  }
-  const cleaned = [];
-  for(const [k, arr] of grouped.entries()){
-    if(arr.length === 1){ cleaned.push(arr[0]); continue; }
-    // prefer an article that is not a Google wrapper and/or whose source matches preferred hosts
-    let preferred = arr.find(x => x.url && !x.url.includes('news.google.com') && preferredHosts.some(h => (x.source||'').toLowerCase().includes(h)));
-    if(!preferred) preferred = arr.find(x => x.url && !x.url.includes('news.google.com'));
-    if(!preferred) preferred = arr[0];
-    cleaned.push(preferred);
-  }
-  allArticles = cleaned;
+  // 7. Remove Google News wrappers when a direct source exists
+  allArticles = removeGoogleWrappers(allArticles);
 
-  // 7b. Deduplicate near-duplicate titles across sources (e.g., Radio France vs France Bleu)
-  function wordsOfTitle(t){ return (titleKey(t)||'').split(/\s+/).filter(Boolean); }
-  function isSimilarTitle(a, b){
-    // if titles mention different candidates, do not treat as similar
-    const candidateNames = ['damien maudet','maudet','émile roger lombertie','emile roger lombertie','lombertie','emile roger','yoann balestrat','balestrat','hervé beaudet','herve beaudet','beaudet'].map(normalizeTextSimple);
-    function findCandidatesInTitle(t){
-      const s = normalizeTextSimple(t || '');
-      return candidateNames.filter(c => s.includes(c));
-    }
-    const ca = findCandidatesInTitle(a.title);
-    const cb = findCandidatesInTitle(b.title);
-    if (ca.length > 0 && cb.length > 0){
-      if (!ca.some(x => cb.includes(x))) return false;
-    }
-
-    const wa = new Set(wordsOfTitle(a.title || ''));
-    const wb = new Set(wordsOfTitle(b.title || ''));
-    if (wa.size === 0 || wb.size === 0) return false;
-    const inter = [...wa].filter(w => wb.has(w)).length;
-    const minLen = Math.min(wa.size, wb.size);
-    return (inter / Math.max(1, minLen)) >= 0.6; // threshold: 60%
-  }
-
-  function preferArticle(arr){
-    // score: preferred host -> +100, non-google url -> +50, more matches -> +20 each, longer description -> +1 per char, newer -> +timestamp score
-    const scoreFor = (it) => {
-      const hostScore = preferredHosts.some(h => (it.source||'').toLowerCase().includes(h)) ? 100 : 0;
-      const nonGoogle = (it.url && !it.url.includes('news.google.com')) ? 50 : 0;
-      const matchesScore = (it.matches || []).length * 20;
-      const descLen = (it.description || '').length;
-      const timeScore = it.publishedAt ? new Date(it.publishedAt).getTime() / 1e12 : 0;
-      return hostScore + nonGoogle + matchesScore + descLen + timeScore;
-    };
-    return arr.slice().sort((a,b) => scoreFor(b) - scoreFor(a))[0];
-  }
-
-  const deduped = [];
-  const usedIdx = new Set();
-  for (let i = 0; i < allArticles.length; i++){
-    if (usedIdx.has(i)) continue;
-    const a = allArticles[i];
-    const group = [a];
-    usedIdx.add(i);
-    for (let j = i + 1; j < allArticles.length; j++){
-      if (usedIdx.has(j)) continue;
-      const b = allArticles[j];
-      if (isSimilarTitle(a, b)) { group.push(b); usedIdx.add(j); }
-    }
-    const chosen = group.length > 1 ? preferArticle(group) : a;
-    deduped.push(chosen);
-  }
-  allArticles = deduped;
+  // 7b. Deduplicate near-duplicate titles across sources
+  allArticles = deduplicateSimilarTitles(allArticles);
 
   // 8. Deduplicate by exact URL to remove strict duplicates
-  const seen = new Set();
-  allArticles = allArticles.filter(a => {
-    if (!a.url) return true;
-    const normalizedUrl = a.url.toLowerCase().replace(/\/$/, '');
-    if (seen.has(normalizedUrl)) return false;
-    seen.add(normalizedUrl);
-    return true;
-  });
+  allArticles = deduplicateByUrl(allArticles);
 
   // 9. Sort by date (most recent first)
-  allArticles.sort((a, b) => {
-    const dateA = a.publishedAt ? new Date(a.publishedAt) : new Date(0);
-    const dateB = b.publishedAt ? new Date(b.publishedAt) : new Date(0);
-    return dateB - dateA;
-  });
+  allArticles = sortByDate(allArticles);
 
   // Group articles by month (YYYY-MM)
   const monthlyArticles = {};
@@ -626,6 +556,8 @@ app.post('/admin/feeds/add', async (req, res) => {
   if(!checkAdminAuth(req)) return res.status(401).json({ error: 'unauthorized' });
   const { url, name } = req.body || {};
   if(!url) return res.status(400).json({ error: 'url required' });
+  // Validate URL format
+  try { new URL(url); } catch(e) { return res.status(400).json({ error: 'invalid url format' }); }
   if(RSS_FEEDS.some(f => f.url === url)) return res.json({ ok: false, message: 'already exists' });
   const entry = { url, name: name || 'manual' };
   RSS_FEEDS.push(entry);

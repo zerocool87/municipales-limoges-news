@@ -1,10 +1,19 @@
 async function api(path, method='GET', body){
   const token = document.getElementById('token').value;
+  // Save token to localStorage for persistence
+  if(token) localStorage.setItem('adminToken', token);
   const headers = { 'Accept': 'application/json' };
   if(token) headers['x-admin-token'] = token;
   if(body) headers['Content-Type'] = 'application/json';
   const res = await fetch(path, { method, headers, body: body ? JSON.stringify(body) : undefined });
-  if(!res.ok) throw new Error('HTTP '+res.status);
+  if(!res.ok) {
+    let errorMsg = 'HTTP '+res.status;
+    try {
+      const json = await res.json();
+      if(json.error) errorMsg += ': ' + json.error;
+    } catch(e) {}
+    throw new Error(errorMsg);
+  }
   return res.json();
 }
 
