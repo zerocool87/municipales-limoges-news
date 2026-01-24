@@ -3,8 +3,8 @@
   "buildCommand": "npm install",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/admin/login", "destination": "/server.js" },
-    { "source": "/admin/(.*)", "destination": "/server.js" },
-    { "source": "/(.*)", "destination": "/server.js" }
+    { "source": "/admin/login", "destination": "/api/admin/login" },
+    { "source": "/admin/feeds/(.*)", "destination": "/api/admin/feeds/$1" },
+    { "source": "/admin/feeds", "destination": "/api/admin/feeds/index" }
   ]
 }
