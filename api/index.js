@@ -19,180 +19,33 @@ export default async (req, res) => {
   <meta name="theme-color" content="#071021" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>Municipales 2026 News V2</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Condensed:wght@300;400;700&display=swap" rel="stylesheet">
   <style>
-    :root{
-      --bg:#071021;
-      --bg-accent: radial-gradient(circle at 20% 20%,rgba(0,240,255,0.1),transparent 35%),radial-gradient(circle at 80% 10%,rgba(255,45,166,0.1),transparent 30%),linear-gradient(180deg,#071021,#041018);
-      --card: rgba(255,255,255,0.04);
-      --muted: #9aa3b2;
-      --neon-pink: #ff2da6;
-      --neon-blue: #00f0ff;
-      --title: #cce9ff;
-      --neon-green: #9eff6b;
-      --glass-border: rgba(255,255,255,0.06);
-      --text: #e6f7ff;
-      --desc: #dbeeff;
-    }
-    
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{font-family:system-ui,'Segoe UI',Roboto,Arial,sans-serif; color:var(--text); background:var(--bg-accent), var(--bg); margin:0; padding:1.5rem; transition: background .25s ease, color .2s ease}
-    
-    main{max-width:1100px;margin:0 auto;background:transparent;padding-bottom:4rem}
-    #articles{padding-bottom:1rem}
-    
-    h1{
-      margin:0 0 .5rem;
-      font-family:Orbitron,monospace;
-      color:#ff2da6;
-      font-weight:700;
-      letter-spacing:.5px;
-      font-size:2rem;
-      animation:none;
-    }
-    .subtitle{margin:.25rem 0 1.5rem;color:var(--muted);font-size:.95rem}
-    
-    .controls{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin-bottom:1.5rem;padding:0.75rem 1rem;border:1px solid rgba(255,255,255,0.05);border-radius:10px;background:rgba(255,255,255,0.03)}
-    button{background:linear-gradient(120deg,#00f0ff,#ff2da6);color:#041018;border:0;padding:.55rem .9rem;border-radius:10px;cursor:pointer;font-weight:800;transition:transform .1s ease,box-shadow .1s ease;box-shadow:0 10px 25px rgba(0,0,0,0.35)}
-    @media (hover: hover){
-      button:hover{box-shadow:0 12px 30px rgba(0,0,0,0.35);transform:translateY(-1px)}
-    }
-    
-    #status{color:var(--muted);margin-bottom:1rem}
-    
-    #articles{list-style:none;padding:0;margin:0;display:grid;gap:1rem}
-    .article{position:relative; background: rgba(255,255,255,0.03); padding:1.1rem;border-radius:12px;border:1px solid rgba(255,255,255,0.06); box-shadow:0 18px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.02); overflow:hidden; transition:transform .18s ease, box-shadow .18s ease}
-    .article::before{content:'';position:absolute;left:-30%;top:-60%;width:160%;height:180%;background:linear-gradient(120deg, rgba(255,45,166,0.02), rgba(0,240,255,0.02)); transform:rotate(15deg); pointer-events:none}
-    @media (hover: hover){
-      .article:hover{transform:translateY(-6px); box-shadow:0 24px 50px rgba(0,0,0,0.5), 0 0 40px rgba(255,45,166,0.08)}
-    }
-    
-    .title{font-weight:900;color:var(--title);text-decoration:none; font-size:1.05rem; text-shadow:0 0 6px rgba(115,164,255,0.06)}
-    .title:hover{filter:brightness(1.06);text-decoration:underline}
-    
-    .meta{color:var(--muted);font-size:.86rem;margin:.35rem 0}
-    .desc{margin:0;color:var(--desc)}
-    
-    .article .meta::before{content:'';display:inline-block;width:10px;height:10px;margin-right:.6rem;border-radius:3px;background:linear-gradient(90deg,#ff3b3b 0%,#39ff66 50%,#00f0ff 100%);box-shadow:0 0 8px rgba(255,59,59,0.06), 0 0 12px rgba(57,255,102,0.06), 0 0 18px rgba(0,240,255,0.06)}
-    
-    .toast{position:fixed;right:1rem;bottom:1rem;background:rgba(3,15,30,0.9);color:var(--text);padding:.6rem .9rem;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.5);opacity:0;transform:translateY(8px);transition:opacity .18s ease, transform .18s ease;z-index:9999}
-    .toast.visible{opacity:1;transform:translateY(0)}
-    
-    @media (max-width:480px){
-      h1{font-size:1.3rem}
-      .subtitle{font-size:.9rem}
-    }
+    :root{--bg:#071021;--bg-accent:radial-gradient(circle at 20% 20%,rgba(0,240,255,0.1),transparent 35%),radial-gradient(circle at 80% 10%,rgba(255,45,166,0.1),transparent 30%),linear-gradient(180deg,#071021,#041018);--card:rgba(255,255,255,0.04);--muted:#9aa3b2;--neon-pink:#ff2da6;--neon-blue:#00f0ff;--title:#cce9ff;--neon-green:#9eff6b;--glass-border:rgba(255,255,255,0.06);--text:#e6f7ff;--desc:#dbeeff}*{box-sizing:border-box}html,body{height:100%}body{font-family:system-ui,'Segoe UI',Roboto,Arial,sans-serif;color:var(--text);background:var(--bg-accent),var(--bg);margin:0;padding:1.5rem}main{max-width:1100px;margin:0 auto;background:transparent;padding-bottom:4rem}h1{margin:0 0 .5rem;font-family:Orbitron,monospace;color:#ff2da6;font-weight:700;letter-spacing:.5px;font-size:2rem}.subtitle{margin:.25rem 0 1.5rem;color:var(--muted);font-size:.95rem}.controls{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin-bottom:1.5rem;padding:0.75rem 1rem;border:1px solid rgba(255,255,255,0.05);border-radius:10px;background:rgba(255,255,255,0.03)}button{background:linear-gradient(120deg,#00f0ff,#ff2da6);color:#041018;border:0;padding:.55rem .9rem;border-radius:10px;cursor:pointer;font-weight:800;transition:transform .1s,box-shadow .1s;box-shadow:0 10px 25px rgba(0,0,0,0.35)}@media(hover:hover){button:hover{box-shadow:0 12px 30px rgba(0,0,0,0.35);transform:translateY(-1px)}}button#filter-maudet.active{background:linear-gradient(120deg,#ff7acc,#ff2da6);box-shadow:0 12px 36px rgba(255,45,166,0.25)}select{padding:.55rem .65rem;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);color:var(--text);min-width:160px;cursor:pointer}#status{color:var(--muted);margin-bottom:1rem}#articles{list-style:none;padding:0;margin:0;display:grid;gap:1rem}.article{position:relative;background:rgba(255,255,255,0.03);padding:1.1rem;border-radius:12px;border:1px solid rgba(255,255,255,0.06);box-shadow:0 18px 40px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.02);overflow:hidden;transition:transform .18s,box-shadow .18s}.article::before{content:'';position:absolute;left:-30%;top:-60%;width:160%;height:180%;background:linear-gradient(120deg,rgba(255,45,166,0.02),rgba(0,240,255,0.02));transform:rotate(15deg);pointer-events:none}@media(hover:hover){.article:hover{transform:translateY(-6px);box-shadow:0 24px 50px rgba(0,0,0,0.5),0 0 40px rgba(255,45,166,0.08)}}.article.maudet{border:2px solid #ff3b3b;border-left:4px solid #ff3b3b}@media(hover:hover){.article.maudet:hover{transform:translateY(-10px) scale(1.02);box-shadow:0 30px 80px rgba(255,59,59,0.12),0 0 64px rgba(255,45,166,0.08)}}.title{font-weight:900;color:var(--title);text-decoration:none;font-size:1.05rem;text-shadow:0 0 6px rgba(115,164,255,0.06)}.title:hover{filter:brightness(1.06);text-decoration:underline}.article.maudet .title{color:var(--neon-pink);text-shadow:0 0 8px rgba(255,45,166,0.1)}.meta{color:var(--muted);font-size:.86rem;margin:.35rem 0}.desc{margin:0;color:var(--desc)}.article .meta::before{content:'';display:inline-block;width:10px;height:10px;margin-right:.6rem;border-radius:3px;background:linear-gradient(90deg,#ff3b3b 0%,#39ff66 50%,#00f0ff 100%);box-shadow:0 0 8px rgba(255,59,59,0.06),0 0 12px rgba(57,255,102,0.06),0 0 18px rgba(0,240,255,0.06)}.matches{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.6rem}.tag{display:inline-block;padding:.3rem .7rem;background:linear-gradient(90deg,rgba(0,240,255,0.1),rgba(255,45,166,0.05));border:1px solid rgba(255,45,166,0.3);border-radius:6px;color:var(--muted);font-size:.8rem;font-weight:600;transition:all .15s;cursor:pointer}@media(hover:hover){.tag:hover{filter:brightness(1.08);transform:translateY(-2px);box-shadow:0 6px 16px rgba(255,45,166,0.15);border-color:rgba(255,45,166,0.5)}}.tag.primary{outline:2px solid rgba(0,240,255,0.4);box-shadow:0 8px 22px rgba(0,240,255,0.12)}.tag.maudet{background:linear-gradient(90deg,#ff2da6,#ff7ab0);color:#071021;border:none;box-shadow:0 8px 24px rgba(255,45,166,0.2);font-weight:700}.toast{position:fixed;right:1rem;bottom:1rem;background:rgba(3,15,30,0.9);color:var(--text);padding:.6rem .9rem;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.5);opacity:0;transform:translateY(8px);transition:opacity .18s,transform .18s;z-index:9999}.toast.visible{opacity:1;transform:translateY(0)}.month-tabs{display:flex;gap:.4rem;margin:1rem 0 1.5rem;overflow-x:auto;padding-bottom:.5rem;flex-wrap:wrap}.month-tabs button{padding:.5rem 1rem;border:1px solid rgba(0,240,255,0.2);background:transparent;color:var(--muted);border-radius:6px;cursor:pointer;font-size:.9rem;transition:all .18s;white-space:nowrap}.month-tabs button:hover{border-color:rgba(0,240,255,0.5);color:var(--neon-blue)}.month-tabs button.active{background:linear-gradient(90deg,rgba(0,240,255,0.1),rgba(255,45,166,0.05));border-color:var(--neon-blue);color:var(--neon-blue);box-shadow:0 0 12px rgba(0,240,255,0.15)}@media(max-width:480px){h1{font-size:1.3rem}.subtitle{font-size:.9rem}}
   </style>
 </head>
 <body>
   <main>
     <h1>Municipales 2026 News V2</h1>
     <p class="subtitle">Dernière mise à jour: <span id="updated">–</span></p>
-
+    <div id="month-tabs" class="month-tabs"></div>
     <div class="controls">
       <button id="refresh">🔄 Rafraîchir</button>
+      <button id="filter-maudet">🔎 Maudet</button>
+      <select id="filter-town">
+        <option value="">Toutes les villes</option>
+        <option value="limoges">Limoges</option>
+        <option value="saint-junien">Saint-Junien</option>
+        <option value="panazol">Panazol</option>
+        <option value="couzeix">Couzeix</option>
+        <option value="isle">Isle</option>
+        <option value="feytiat">Feytiat</option>
+      </select>
     </div>
-    <div id="status">Chargement des dernières news municipales (Limoges 2026)...</div>
+    <div id="status">Chargement...</div>
     <ul id="articles"></ul>
   </main>
-
   <script>
-    const statusEl = document.getElementById('status');
-    const articlesEl = document.getElementById('articles');
-    const updatedEl = document.getElementById('updated');
-    const refreshBtn = document.getElementById('refresh');
-
-    function showToast(msg, timeout) {
-      const t = document.createElement('div');
-      t.className = 'toast';
-      t.textContent = msg;
-      document.body.appendChild(t);
-      setTimeout(() => t.classList.add('visible'), 10);
-      setTimeout(() => {
-        t.classList.remove('visible');
-        setTimeout(() => t.remove(), 400);
-      }, timeout || 3000);
-    }
-
-    async function loadNews(opts) {
-      const notify = opts && opts.notify;
-      statusEl.textContent = 'Chargement...';
-      articlesEl.innerHTML = '';
-
-      try {
-        const resp = await fetch('/api/news');
-        if (!resp.ok) {
-          throw new Error('HTTP ' + resp.status);
-        }
-
-        const data = await resp.json();
-        if (!data.articles || !Array.isArray(data.articles)) {
-          throw new Error('Invalid response format');
-        }
-
-        updatedEl.textContent = new Date().toLocaleString('fr-FR');
-        
-        if (data.articles.length === 0) {
-          statusEl.textContent = 'Aucun article trouvé';
-          return;
-        }
-
-        statusEl.textContent = data.articles.length + ' articles chargés';
-        renderArticles(data.articles);
-        
-        if (notify) {
-          showToast(data.articles.length + ' articles chargés');
-        }
-      } catch (e) {
-        statusEl.textContent = 'Erreur: ' + e.message;
-        console.error('loadNews failed:', e);
-        if (notify) {
-          showToast('Erreur: ' + e.message, 5000);
-        }
-      }
-    }
-
-    function renderArticles(articles) {
-      articlesEl.innerHTML = articles.map(function(article) {
-        return '<li class="article">' +
-          '<a href="' + escapeHTML(article.url) + '" target="_blank" rel="noopener noreferrer" class="title">' +
-          escapeHTML(article.title) +
-          '</a>' +
-          '<div class="meta">' +
-          escapeHTML(article.source) + ' • ' + new Date(article.publishedAt).toLocaleDateString('fr-FR') +
-          '</div>' +
-          (article.description ? '<p class="desc">' + escapeHTML(article.description) + '</p>' : '') +
-          '</li>';
-      }).join('');
-    }
-
-    function escapeHTML(str) {
-      const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-      };
-      return (str || '').replace(/[&<>"']/g, function(m) { return map[m]; });
-    }
-
-    if (refreshBtn) {
-      refreshBtn.addEventListener('click', function() {
-        loadNews({ notify: true });
-      });
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-      loadNews();
-    });
-
-    setInterval(function() {
-      loadNews();
-    }, 5 * 60 * 1000);
+    var statusEl=document.getElementById('status'),articlesEl=document.getElementById('articles'),updatedEl=document.getElementById('updated'),refreshBtn=document.getElementById('refresh'),maudetBtn=document.getElementById('filter-maudet'),townSelect=document.getElementById('filter-town'),monthTabsEl=document.getElementById('month-tabs'),allArticles=[],allMonths=[],currentMonth='',maudetActive=false,currentTown='';function showToast(msg,timeout){var t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.classList.add('visible')},10);setTimeout(function(){t.classList.remove('visible');setTimeout(function(){return t.remove()},400)},timeout||3000)}async function loadNews(opts){var notify=opts&&opts.notify;statusEl.textContent='Chargement...';articlesEl.innerHTML='';try{var resp=await fetch('/api/news');if(!resp.ok)throw new Error('HTTP '+resp.status);var data=await resp.json();if(!data.articles||!Array.isArray(data.articles))throw new Error('Invalid response');updatedEl.textContent=new Date().toLocaleString('fr-FR');if(data.articles.length===0){statusEl.textContent='Aucun article';return}allArticles=data.articles;allMonths=data.months||[];renderMonthTabs();applyFilters();if(notify)showToast(data.articles.length+' articles')}catch(e){statusEl.textContent='Erreur: '+e.message;console.error('loadNews:',e);if(notify)showToast('Erreur: '+e.message,5000)}}function renderMonthTabs(){if(!allMonths.length){monthTabsEl.innerHTML='';return}monthTabsEl.innerHTML=allMonths.map(function(m){return'<button data-month="'+m+'"'+(m===currentMonth?' class="active"':'')+'>'+formatMonth(m)+'</button>'}).join('');Array.from(monthTabsEl.querySelectorAll('button')).forEach(function(btn){btn.addEventListener('click',function(){currentMonth=btn.dataset.month===currentMonth?'':btn.dataset.month;applyFilters()})})}function formatMonth(m){var parts=m.split('-');var months=['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc'];return months[parseInt(parts[1])-1]+' '+parts[0]}function applyFilters(){var filtered=allArticles;if(currentMonth){var monthKey=currentMonth;filtered=filtered.filter(function(a){var d=new Date(a.publishedAt);var k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');return k===monthKey})}if(currentTown){filtered=filtered.filter(function(a){var t=(a.title||'').toLowerCase();var matches=a.matches||[];return t.includes(currentTown)||matches.some(function(m){return m.toLowerCase()===currentTown})})}renderMonthTabs();renderArticles(filtered)}function renderArticles(articles){if(articles.length===0){statusEl.textContent='Aucun article';articlesEl.innerHTML='';return}statusEl.textContent=articles.length+' articles';articlesEl.innerHTML=articles.map(function(article){var isMaudet=article.matches&&article.matches.some(function(m){return m==='maudet'||m==='damien maudet'});var classes='article'+(isMaudet&&maudetActive?' maudet':'');var matchesHTML='';if(article.matches&&article.matches.length){var isPrimary=article.primaryMatch||article.matches[0];matchesHTML='<div class="matches">'+article.matches.map(function(m){var tagClass='tag'+(m===isPrimary?' primary':'')+(m==='maudet'||m==='damien maudet'?' maudet':'');return'<span class="'+tagClass+'">'+escapeHTML(m)+'</span>'}).join('')+'</div>'}return'<li class="'+classes+'"><a href="'+escapeHTML(article.url)+'" target="_blank" rel="noopener" class="title">'+escapeHTML(article.title)+'</a><div class="meta">'+escapeHTML(article.source)+' • '+new Date(article.publishedAt).toLocaleDateString('fr-FR')+'</div>'+(article.description?'<p class="desc">'+escapeHTML(article.description)+'</p>':'')+matchesHTML+'</li>'}).join('')}function escapeHTML(str){var map={'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'};return(str||'').replace(/[&<>"']/g,function(m){return map[m]})}if(refreshBtn)refreshBtn.addEventListener('click',function(){loadNews({notify:true})});if(maudetBtn)maudetBtn.addEventListener('click',function(){maudetActive=!maudetActive;maudetBtn.classList.toggle('active',maudetActive);applyFilters()});if(townSelect)townSelect.addEventListener('change',function(){currentTown=townSelect.value;applyFilters()});document.addEventListener('DOMContentLoaded',function(){loadNews()});setInterval(function(){loadNews()},5*60*1000)
   </script>
 </body>
 </html>`;
