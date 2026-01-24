@@ -1,17 +1,25 @@
 async function api(path, method='GET', body){
-  const token = document.getElementById('token').value;
-  // Save token to localStorage for persistence
-  if(token) localStorage.setItem('adminToken', token);
-  const headers = { 'Accept': 'application/json' };
-  if(token) headers['x-admin-token'] = token;
-  if(body) headers['Content-Type'] = 'application/json';
-  const res = await fetch(path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  const headers = { 
+    'Accept': 'application/json',
+    'Content-Type': 'application/json'
+  };
+  const res = await fetch(path, { 
+    method, 
+    headers, 
+    body: body ? JSON.stringify(body) : undefined,
+    credentials: 'include' // Important pour envoyer les cookies de session
+  });
   if(!res.ok) {
     let errorMsg = 'HTTP '+res.status;
     try {
       const json = await res.json();
       if(json.error) errorMsg += ': ' + json.error;
     } catch(e) {}
+    if(res.status === 401) {
+      // Rediriger vers login si non authentifié
+      window.location.href = '/login';
+      return;
+    }
     throw new Error(errorMsg);
   }
   return res.json();
@@ -156,13 +164,18 @@ async function addFeed(){
 
 function escapeHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+// Fonction de déconnexion
+async function logout(){
+  try{
+    await api('/admin/logout', 'POST');
+    window.location.href = '/login';
+  }catch(e){
+    alert('Erreur de déconnexion: '+e.message);
+  }
+}
+
 // init
 document.getElementById('refresh').addEventListener('click', refresh);
 document.getElementById('add-btn').addEventListener('click', addFeed);
-window.addEventListener('load', () => {
-  const saved = localStorage.getItem('adminToken');
-  if(saved){
-    document.getElementById('token').value = saved;
-  }
-  refresh();
-});
+document.getElementById('logout').addEventListener('click', logout);
+window.addEventListener('load', refresh);

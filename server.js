@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import Parser from 'rss-parser';
 import fs from 'fs/promises';
+import session from 'express-session';
 import { RSS_FEEDS, ALTERNATIVE_FEEDS as LIB_ALTERNATIVE_FEEDS, getMatches, isStrictMatch, normalizeTextSimple } from './lib/news.js';
 import { 
   deduplicateSimilarTitles, 
@@ -25,9 +26,22 @@ const __dirname = path.dirname(__filename);
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'municipales-limoges-2026-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
 app.use(express.static(PUBLIC_DIR));
 
 // Serve the login page for friendly routes
@@ -35,28 +49,36 @@ app.get(['/login', '/admin/login'], (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'login.html'));
 });
 
-// Handle admin login (simple shared-secret / user-pass check)
+// Handle admin login with session-based auth
 app.post('/admin/login', (req, res) => {
   const ADMIN_USER = process.env.ADMIN_USER || process.env.ADMIN_USERNAME;
   const ADMIN_PASS = process.env.ADMIN_PASSWORD || process.env.ADMIN_PASS;
-  const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 
   // If nothing is configured, keep it open for local/dev
-  if(!ADMIN_USER && !ADMIN_PASS && !ADMIN_TOKEN){
-    return res.json({ ok: true, mode: 'open', token: null });
+  if(!ADMIN_USER && !ADMIN_PASS){
+    req.session.authenticated = true;
+    return res.json({ ok: true, mode: 'open' });
   }
 
-  // Validate user/pass when defined
-  if(ADMIN_USER || ADMIN_PASS){
-    const { username, password } = req.body || {};
-    if(username !== ADMIN_USER || password !== ADMIN_PASS){
-      return res.status(401).json({ ok: false, error: 'invalid credentials' });
+  // Validate user/pass
+  const { username, password } = req.body || {};
+  if(username !== ADMIN_USER || password !== ADMIN_PASS){
+    return res.status(401).json({ ok: false, error: 'invalid credentials' });
+  }
+
+  // Set session as authenticated
+  req.session.authenticated = true;
+  return res.json({ ok: true });
+});
+
+// Logout endpoint
+app.post('/admin/logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      return res.status(500).json({ ok: false, error: 'logout failed' });
     }
-  }
-
-  // Return the token clients must send via x-admin-token
-  const token = ADMIN_TOKEN || 'dev-open';
-  return res.json({ ok: true, token });
+    res.json({ ok: true });
+  });
 });
 
 const NEWSAPI_KEY = process.env.NEWSAPI_KEY;
@@ -441,10 +463,8 @@ app.post('/api/filters', async (req, res) => {
   }catch(e){ console.error('POST /api/filters error', e && e.message ? e.message : e); return res.status(500).json({ ok: false }); }
 });
 function checkAdminAuth(req){
-  const token = process.env.ADMIN_TOKEN;
-  if(!token) return true; // no token configured => open for local/dev usage
-  const header = req.headers['x-admin-token'];
-  return header === token;
+  // Check if user is authenticated via session
+  return req.session && req.session.authenticated === true;
 }
 
 app.get('/admin/feeds', (req, res) => {

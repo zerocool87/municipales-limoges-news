@@ -42,11 +42,11 @@
         const res = await fetch('/admin/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password })
+          body: JSON.stringify({ username, password }),
+          credentials: 'include'
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.ok) throw new Error(data.error || 'Échec de connexion');
-        if (data.token) localStorage.setItem('adminToken', data.token);
         statusEl.textContent = 'Connexion réussie, redirection...';
         window.location.href = '/admin.html';
       } catch (err) {
