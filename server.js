@@ -6,7 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import Parser from 'rss-parser';
 import fs from 'fs/promises';
-import session from 'express-session';
+import jwt from 'jsonwebtoken';
 import { RSS_FEEDS, ALTERNATIVE_FEEDS as LIB_ALTERNATIVE_FEEDS, getMatches, isStrictMatch, normalizeTextSimple } from './lib/news.js';
 import { 
   deduplicateSimilarTitles, 
@@ -49,18 +49,26 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session configuration
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'municipales-limoges-2026-secret-key',
-  resave: false,
-  saveUninitialized: true, // Changed to true to ensure session is created
-  cookie: {
-    secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-    httpOnly: true,
-    sameSite: 'lax', // Important pour les cookies cross-site
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+// JWT verification middleware
+const JWT_SECRET = process.env.SESSION_SECRET || 'municipales-limoges-2026-secret-key';
+
+function verifyJWT(req, res, next) {
+  const token = req.headers.authorization?.split(' ')[1] || req.cookies?.auth_token;
+  
+  if (!token) {
+    return res.status(401).json({ ok: false, error: 'no token' });
   }
-}));
+  
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    console.warn('[JWT] Invalid token:', err.message);
+    return res.status(401).json({ ok: false, error: 'invalid token' });
+  }
+}
+
 app.use(express.static(PUBLIC_DIR));
 
 // Serve the login page for friendly routes
@@ -68,25 +76,23 @@ app.get(['/login', '/admin/login'], (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'login.html'));
 });
 
-// Handle admin login with session-based auth
+// Handle admin login with JWT auth
 app.post('/admin/login', (req, res) => {
   const ADMIN_USER = process.env.ADMIN_USER || process.env.ADMIN_USERNAME;
   const ADMIN_PASS = process.env.ADMIN_PASSWORD || process.env.ADMIN_PASS;
 
-  // Debug logging
   console.log('[LOGIN] Attempting login. User configured:', !!ADMIN_USER, 'Pass configured:', !!ADMIN_PASS);
 
   // If nothing is configured, keep it open for local/dev
   if(!ADMIN_USER && !ADMIN_PASS){
-    req.session.authenticated = true;
-    req.session.save((err) => {
-      if (err) {
-        console.error('[LOGIN] Session save error (dev mode):', err);
-        return res.status(500).json({ ok: false, error: 'session error' });
-      }
-      return res.json({ ok: true, mode: 'open' });
+    const token = jwt.sign({ user: 'dev', mode: 'open' }, JWT_SECRET, { expiresIn: '24h' });
+    res.cookie('auth_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000
     });
-    return;
+    return res.json({ ok: true, mode: 'open', token });
   }
 
   // Validate user/pass
@@ -98,26 +104,25 @@ app.post('/admin/login', (req, res) => {
     return res.status(401).json({ ok: false, error: 'invalid credentials' });
   }
 
-  // Set session as authenticated and save
-  req.session.authenticated = true;
-  req.session.save((err) => {
-    if (err) {
-      console.error('[LOGIN] Session save error:', err);
-      return res.status(500).json({ ok: false, error: 'session error' });
-    }
-    console.log('[LOGIN] Authentication successful for user:', username);
-    return res.json({ ok: true });
+  // Create JWT token
+  const token = jwt.sign({ user: username }, JWT_SECRET, { expiresIn: '24h' });
+  
+  // Set both header and cookie
+  res.cookie('auth_token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 24 * 60 * 60 * 1000
   });
+  
+  console.log('[LOGIN] Authentication successful for user:', username);
+  return res.json({ ok: true, token });
 });
 
-// Logout endpoint
+// Logout endpoint (client-side just removes token)
 app.post('/admin/logout', (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      return res.status(500).json({ ok: false, error: 'logout failed' });
-    }
-    res.json({ ok: true });
-  });
+  res.clearCookie('auth_token');
+  res.json({ ok: true });
 });
 
 const NEWSAPI_KEY = process.env.NEWSAPI_KEY;
@@ -501,9 +506,21 @@ app.post('/api/filters', async (req, res) => {
     return res.status(400).json({ ok: false, error: 'invalid action' });
   }catch(e){ console.error('POST /api/filters error', e && e.message ? e.message : e); return res.status(500).json({ ok: false }); }
 });
+
 function checkAdminAuth(req){
-  // Check if user is authenticated via session
-  return req.session && req.session.authenticated === true;
+  // Check if user is authenticated via JWT
+  const token = req.headers.authorization?.split(' ')[1] || req.cookies?.auth_token;
+  
+  if (!token) {
+    return false;
+  }
+  
+  try {
+    jwt.verify(token, JWT_SECRET);
+    return true;
+  } catch (err) {
+    return false;
+  }
 }
 
 app.get('/admin/feeds', (req, res) => {

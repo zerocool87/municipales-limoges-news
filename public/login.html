@@ -47,6 +47,10 @@
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.ok) throw new Error(data.error || 'Échec de connexion');
+        // Save JWT token from response
+        if(data.token) {
+          localStorage.setItem('auth_token', data.token);
+        }
         statusEl.textContent = 'Connexion réussie, redirection...';
         window.location.href = '/admin.html';
       } catch (err) {

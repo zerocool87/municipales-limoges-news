@@ -3,11 +3,18 @@ async function api(path, method='GET', body){
     'Accept': 'application/json',
     'Content-Type': 'application/json'
   };
+  
+  // Add JWT token from localStorage if available
+  const token = localStorage.getItem('auth_token');
+  if(token) {
+    headers['Authorization'] = 'Bearer ' + token;
+  }
+  
   const res = await fetch(path, { 
     method, 
     headers, 
     body: body ? JSON.stringify(body) : undefined,
-    credentials: 'include' // Important pour envoyer les cookies de session
+    credentials: 'include' // Pour envoyer les cookies
   });
   if(!res.ok) {
     let errorMsg = 'HTTP '+res.status;
@@ -17,6 +24,7 @@ async function api(path, method='GET', body){
     } catch(e) {}
     if(res.status === 401) {
       // Rediriger vers login si non authentifié
+      localStorage.removeItem('auth_token');
       window.location.href = '/login';
       return;
     }
@@ -168,9 +176,11 @@ function escapeHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'
 async function logout(){
   try{
     await api('/admin/logout', 'POST');
+    localStorage.removeItem('auth_token');
     window.location.href = '/login';
   }catch(e){
-    alert('Erreur de déconnexion: '+e.message);
+    localStorage.removeItem('auth_token');
+    window.location.href = '/login';
   }
 }
 
