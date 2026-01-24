@@ -71,11 +71,6 @@ function verifyJWT(req, res, next) {
 
 app.use(express.static(PUBLIC_DIR));
 
-// Serve the login page for friendly routes
-app.get(['/login', '/admin/login'], (req, res) => {
-  res.sendFile(path.join(PUBLIC_DIR, 'login.html'));
-});
-
 // Handle admin login with JWT auth
 app.post('/admin/login', (req, res) => {
   const ADMIN_USER = process.env.ADMIN_USER || process.env.ADMIN_USERNAME;
@@ -669,21 +664,6 @@ app.post('/admin/feeds/unblacklist', (req, res) => {
 
 // Serve login page
 app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'login.html'));
-});
-
-// Serve admin UI
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
-});
-
-// Serve admin.html directly
-app.get('/admin.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
-});
-
-// Serve login.html directly
-app.get('/login.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
