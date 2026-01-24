@@ -17,7 +17,124 @@ export default async (req, res) => {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Connexion administrateur</title>
-  <link rel="stylesheet" href="/login.css">
+  <style>
+    :root{
+      --bg-top:#0b1226;
+      --bg-bottom:#050a14;
+      --card:#0f172a;
+      --card-border:rgba(255,255,255,0.06);
+      --accent:#00f0ff;
+      --accent-strong:#ff2da6;
+      --text:#e8f4ff;
+      --muted:#9aa3b2;
+      --shadow:0 20px 50px rgba(0,0,0,0.45);
+    }
+    
+    body{
+      margin:0;
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:linear-gradient(145deg,var(--bg-top),var(--bg-bottom));
+      font-family:system-ui,"Segoe UI",Roboto,Arial,sans-serif;
+      color:var(--text);
+      padding:1.5rem;
+    }
+    
+    .login-card{
+      width:min(400px, 92vw);
+      background:var(--card);
+      border:1px solid var(--card-border);
+      border-radius:16px;
+      padding:1.75rem;
+      box-shadow:var(--shadow);
+    }
+    
+    .login-header h1{
+      margin:0.15rem 0 0.35rem;
+      font-size:1.6rem;
+      letter-spacing:0.01em;
+    }
+    
+    .login-header .eyebrow{
+      margin:0;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+      font-size:0.75rem;
+      color:var(--accent);
+      font-weight:700;
+    }
+    
+    .login-header .lead{
+      margin:0;
+      color:var(--muted);
+      font-size:0.95rem;
+    }
+    
+    .login-form{
+      margin-top:1.25rem;
+      display:flex;
+      flex-direction:column;
+      gap:0.9rem;
+    }
+    
+    .login-form label{
+      display:block;
+      font-weight:600;
+      margin-bottom:0.35rem;
+    }
+    
+    .login-form input{
+      width:100%;
+      padding:0.65rem 0.75rem;
+      border-radius:10px;
+      border:1px solid var(--card-border);
+      background:rgba(255,255,255,0.04);
+      color:var(--text);
+      font-size:1rem;
+      transition:border-color 0.15s ease, box-shadow 0.15s ease;
+      box-sizing:border-box;
+    }
+    
+    .login-form input:focus{
+      outline:none;
+      border-color:var(--accent);
+      box-shadow:0 0 0 3px rgba(0,240,255,0.14);
+    }
+    
+    .login-form button{
+      margin-top:0.35rem;
+      width:100%;
+      padding:0.75rem 0.85rem;
+      border-radius:12px;
+      border:0;
+      background:linear-gradient(120deg,var(--accent),var(--accent-strong));
+      color:#041018;
+      font-weight:800;
+      font-size:1rem;
+      letter-spacing:0.01em;
+      cursor:pointer;
+      transition:transform 0.12s ease, box-shadow 0.12s ease;
+    }
+    
+    .login-form button:hover{
+      transform:translateY(-1px);
+      box-shadow:0 12px 30px rgba(0,0,0,0.35);
+    }
+    
+    .helper{
+      margin:1rem 0 0;
+      color:var(--muted);
+      font-size:0.9rem;
+      text-align:center;
+    }
+    
+    @media (max-width:540px){
+      .login-card{padding:1.25rem;border-radius:12px}
+      .login-header h1{font-size:1.4rem}
+    }
+  </style>
 </head>
 <body>
   <div class="login-card">
