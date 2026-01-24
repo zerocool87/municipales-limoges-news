@@ -13,10 +13,42 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const PUBLIC_DIR = path.join(__dirname, 'public');
+
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(PUBLIC_DIR));
+
+// Serve the login page for friendly routes
+app.get(['/login', '/admin/login'], (req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, 'login.html'));
+});
+
+// Handle admin login (simple shared-secret / user-pass check)
+app.post('/admin/login', (req, res) => {
+  const ADMIN_USER = process.env.ADMIN_USER || process.env.ADMIN_USERNAME;
+  const ADMIN_PASS = process.env.ADMIN_PASSWORD || process.env.ADMIN_PASS;
+  const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
+
+  // If nothing is configured, keep it open for local/dev
+  if(!ADMIN_USER && !ADMIN_PASS && !ADMIN_TOKEN){
+    return res.json({ ok: true, mode: 'open', token: null });
+  }
+
+  // Validate user/pass when defined
+  if(ADMIN_USER || ADMIN_PASS){
+    const { username, password } = req.body || {};
+    if(username !== ADMIN_USER || password !== ADMIN_PASS){
+      return res.status(401).json({ ok: false, error: 'invalid credentials' });
+    }
+  }
+
+  // Return the token clients must send via x-admin-token
+  const token = ADMIN_TOKEN || 'dev-open';
+  return res.json({ ok: true, token });
+});
 
 const NEWSAPI_KEY = process.env.NEWSAPI_KEY;
 const NEWSAPI_ENABLED = (process.env.NEWSAPI_ENABLED !== 'false') && NEWSAPI_KEY; // Disable with NEWSAPI_ENABLED=false
@@ -42,6 +74,7 @@ const MAX_AGE_DAYS = 30; // articles older than this are ignored
 // --- Persistent storage for globally removed tags (file-based fallback)
 const DATA_DIR = path.join(__dirname, 'data');
 const REMOVED_TAGS_FILE = path.join(DATA_DIR, 'removedTags.json');
+const FEEDS_FILE = path.join(DATA_DIR, 'feeds.json');
 
 async function ensureDataDir(){
   try{ await fs.mkdir(DATA_DIR, { recursive: true }); }catch(e){ console.warn('Could not create data dir', e && e.message ? e.message : e); }
@@ -65,6 +98,32 @@ async function writeRemovedTags(arr){
     const norm = Array.from(new Set((arr || []).map(normalizeTextSimple).filter(Boolean)));
     await fs.writeFile(REMOVED_TAGS_FILE, JSON.stringify(norm, null, 2), 'utf8');
   }catch(e){ console.warn('writeRemovedTags failed', e && e.message ? e.message : e); }
+}
+
+async function readManualFeeds(){
+  try{
+    await ensureDataDir();
+    const raw = await fs.readFile(FEEDS_FILE, 'utf8');
+    return JSON.parse(raw || '[]');
+  }catch(e){
+    if(e.code === 'ENOENT') return [];
+    console.warn('readManualFeeds failed', e && e.message ? e.message : e);
+    return [];
+  }
+}
+
+async function writeManualFeeds(arr){
+  try{
+    await ensureDataDir();
+    await fs.writeFile(FEEDS_FILE, JSON.stringify(arr || [], null, 2), 'utf8');
+  }catch(e){ console.warn('writeManualFeeds failed', e && e.message ? e.message : e); }
+}
+
+let manualFeeds = await readManualFeeds();
+for(const f of manualFeeds){
+  if(f && f.url && !RSS_FEEDS.some(r => r.url === f.url)){
+    RSS_FEEDS.push({ url: f.url, name: f.name || 'manual' });
+  }
 }
 
 // Alternative feeds imported from lib/news.js as LIB_ALTERNATIVE_FEEDS
@@ -522,35 +581,70 @@ app.post('/admin/feeds/test', async (req, res) => {
 });
 
 // Update feed metadata (e.g., name)
-app.post('/admin/feeds/update', (req, res) => {
+app.post('/admin/feeds/update', async (req, res) => {
   if(!checkAdminAuth(req)) return res.status(401).json({ error: 'unauthorized' });
-  const { url, name } = req.body || {};
+  const { url, name, newUrl } = req.body || {};
   if(!url) return res.status(400).json({ error: 'url required' });
-  let found = false;
-  for(const f of RSS_FEEDS){
-    if(f.url === url){ f.name = name || f.name; found = true; break; }
+  const target = RSS_FEEDS.find(f => f.url === url);
+  if(!target) return res.status(404).json({ ok: false, error: 'not found' });
+
+  const finalUrl = newUrl && newUrl !== url ? newUrl : url;
+  if(finalUrl !== url && RSS_FEEDS.some(f => f.url === finalUrl)){
+    return res.status(400).json({ ok: false, error: 'url already exists' });
   }
-  if(!found) return res.status(404).json({ ok: false, error: 'not found' });
-  res.json({ ok: true, url, name });
+
+  // update in-memory feed
+  target.url = finalUrl;
+  target.name = name || target.name;
+
+  // persist manual feeds
+  let manualUpdated = false;
+  manualFeeds = manualFeeds.map(f => {
+    if(f.url === url){
+      manualUpdated = true;
+      return { ...f, url: finalUrl, name: name || f.name || 'manual' };
+    }
+    return f;
+  });
+  if(manualUpdated) await writeManualFeeds(manualFeeds);
+
+  // migrate failure/blacklist tracking to new URL
+  if(finalUrl !== url){
+    const prevFailures = feedFailures.get(url);
+    feedFailures.delete(url);
+    if(prevFailures !== undefined) feedFailures.set(finalUrl, prevFailures);
+    if(blacklistedFeeds.has(url)){
+      blacklistedFeeds.delete(url);
+      // do not carry blacklist to new URL
+    }
+  }
+
+  res.json({ ok: true, url: finalUrl, name: target.name });
 });
 
-app.post('/admin/feeds/add', (req, res) => {
+app.post('/admin/feeds/add', async (req, res) => {
   if(!checkAdminAuth(req)) return res.status(401).json({ error: 'unauthorized' });
   const { url, name } = req.body || {};
   if(!url) return res.status(400).json({ error: 'url required' });
   if(RSS_FEEDS.some(f => f.url === url)) return res.json({ ok: false, message: 'already exists' });
-  RSS_FEEDS.push({ url, name: name || 'manual' });
+  const entry = { url, name: name || 'manual' };
+  RSS_FEEDS.push(entry);
+  manualFeeds.push(entry);
+  await writeManualFeeds(manualFeeds);
   feedFailures.set(url, 0);
   blacklistedFeeds.delete(url);
   res.json({ ok: true, url });
 });
 
-app.post('/admin/feeds/remove', (req, res) => {
+app.post('/admin/feeds/remove', async (req, res) => {
   if(!checkAdminAuth(req)) return res.status(401).json({ error: 'unauthorized' });
   const { url } = req.body || {};
   if(!url) return res.status(400).json({ error: 'url required' });
   const before = RSS_FEEDS.length;
   for(let i = RSS_FEEDS.length - 1; i >= 0; --i) if(RSS_FEEDS[i].url === url) RSS_FEEDS.splice(i,1);
+  const manualBefore = manualFeeds.length;
+  manualFeeds = manualFeeds.filter(f => f.url !== url);
+  if(manualFeeds.length !== manualBefore) await writeManualFeeds(manualFeeds);
   feedFailures.delete(url);
   blacklistedFeeds.delete(url);
   res.json({ ok: true, removed: before - RSS_FEEDS.length });

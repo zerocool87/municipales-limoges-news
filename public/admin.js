@@ -24,21 +24,75 @@ function renderFeeds(feeds){
   const el = document.getElementById('feeds-list'); el.innerHTML = '';
   feeds.forEach(f => {
     const li = document.createElement('li');
-    li.innerHTML = `<div><strong>${escapeHtml(f.name||'feed')}</strong> <small>${escapeHtml(f.url)}</small></div>`;
+    const info = document.createElement('div');
+    const nameEl = document.createElement('strong');
+    nameEl.textContent = f.name || 'feed';
+    const urlEl = document.createElement('small');
+    urlEl.textContent = f.url;
+    info.appendChild(nameEl);
+    info.appendChild(document.createElement('br'));
+    info.appendChild(urlEl);
+    li.appendChild(info);
+
     const actions = document.createElement('div'); actions.className='feed-actions';
+
+    // placeholder for test results
+    const sample = document.createElement('div'); sample.className = 'feed-sample'; sample.style.display = 'none';
 
     const testBtn = document.createElement('button'); testBtn.textContent='Tester';
     testBtn.onclick = async ()=>{ 
+      // toggle off if already visible
+      if(sample.style.display !== 'none'){
+        sample.style.display = 'none';
+        sample.innerHTML = '';
+        return;
+      }
       testBtn.disabled = true; testBtn.textContent = 'Test en cours...';
-      try{ const r = await api('/admin/feeds/test','POST',{ url: f.url }); renderFeedSample(li, r.items || []); }catch(e){ alert('Erreur: '+e.message); }
+      sample.style.display = 'block';
+      sample.textContent = 'Test en cours...';
+      try{ const r = await api('/admin/feeds/test','POST',{ url: f.url }); renderFeedSample(li, r.items || []); }catch(e){ sample.innerHTML=''; alert('Erreur: '+e.message); }
       testBtn.disabled = false; testBtn.textContent = 'Tester';
     };
 
     const editBtn = document.createElement('button'); editBtn.textContent='Editer';
-    editBtn.onclick = async ()=>{ 
-      const newName = prompt('Nouveau nom pour le flux', f.name || '');
-      if(newName === null) return;
-      try{ await api('/admin/feeds/update','POST',{ url: f.url, name: newName }); refresh(); }catch(e){ alert('Erreur: '+e.message); }
+    editBtn.onclick = ()=>{
+      const existing = li.querySelector('.edit-form');
+      if(existing){ existing.remove(); return; }
+      const form = document.createElement('div');
+      form.className = 'edit-form';
+
+      const nameInput = document.createElement('input');
+      nameInput.value = f.name || '';
+      nameInput.placeholder = 'Nom du flux';
+
+      const urlInput = document.createElement('input');
+      urlInput.value = f.url;
+      urlInput.placeholder = 'URL du flux';
+
+      const saveBtn = document.createElement('button'); saveBtn.textContent = 'Sauver';
+      const cancelBtn = document.createElement('button'); cancelBtn.textContent = 'Annuler';
+      cancelBtn.type = 'button';
+      saveBtn.type = 'button';
+
+      saveBtn.onclick = async ()=>{
+        const newName = nameInput.value.trim();
+        const newUrl = urlInput.value.trim();
+        try{
+          await api('/admin/feeds/update','POST',{ url: f.url, name: newName, newUrl });
+          li.removeChild(form);
+          refresh();
+        }catch(e){ alert('Erreur: '+e.message); }
+      };
+
+      cancelBtn.onclick = ()=>{ li.removeChild(form); };
+
+      form.appendChild(nameInput);
+      form.appendChild(urlInput);
+      form.appendChild(saveBtn);
+      form.appendChild(cancelBtn);
+      // afficher juste sous le bloc titre/url
+      li.insertBefore(form, actions);
+      nameInput.focus();
     };
 
     const removeBtn = document.createElement('button'); removeBtn.textContent='Supprimer';
@@ -50,8 +104,6 @@ function renderFeeds(feeds){
 
     li.appendChild(actions);
 
-    // placeholder for test results
-    const sample = document.createElement('div'); sample.className = 'feed-sample'; sample.style.display = 'none';
     li.appendChild(sample);
 
     el.appendChild(li);
@@ -98,4 +150,10 @@ function escapeHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'
 // init
 document.getElementById('refresh').addEventListener('click', refresh);
 document.getElementById('add-btn').addEventListener('click', addFeed);
-window.addEventListener('load', refresh);
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('adminToken');
+  if(saved){
+    document.getElementById('token').value = saved;
+  }
+  refresh();
+});
