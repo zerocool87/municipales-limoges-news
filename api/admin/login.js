@@ -1,8 +1,8 @@
-const jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.SESSION_SECRET || 'municipales-limoges-2026-secret-key';
 
-module.exports = async (req, res) => {
+export default async (req, res) => {
   // CORS headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
