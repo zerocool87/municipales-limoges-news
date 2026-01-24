@@ -4,7 +4,12 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/admin/login", "destination": "/api/admin/login" },
-    { "source": "/admin/feeds/(.*)", "destination": "/api/admin/feeds/$1" },
-    { "source": "/admin/feeds", "destination": "/api/admin/feeds/index" }
+    { "source": "/admin/feeds/test", "destination": "/api/admin/feeds/test" },
+    { "source": "/admin/feeds/add", "destination": "/api/admin/feeds/add" },
+    { "source": "/admin/feeds/remove", "destination": "/api/admin/feeds/remove" },
+    { "source": "/admin/feeds/unblacklist", "destination": "/api/admin/feeds/unblacklist" },
+    { "source": "/admin/feeds/update", "destination": "/api/admin/feeds/update" },
+    { "source": "/admin/feeds", "destination": "/api/admin/feeds/index" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

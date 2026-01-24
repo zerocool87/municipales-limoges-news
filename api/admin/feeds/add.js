@@ -1,32 +1,43 @@
-import { RSS_FEEDS, feedFailures, blacklistedFeeds } from '../../../../lib/news.js';
+import { RSS_FEEDS, feedFailures, blacklistedFeeds } from '../../../lib/news.js';
+import { requireAuth } from '../../lib/auth.js';
 
-function checkAdminAuth(req){
-  const token = process.env.ADMIN_TOKEN;
-  if(!token) return true;
-  const header = req.headers['x-admin-token'];
-  return header === token;
-}
+export default async function handler(req, res) {
+  // CORS headers
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-async function readJSON(req){
-  return new Promise((resolve, reject) => {
-    let data = '';
-    req.on('data', chunk => data += chunk);
-    req.on('end', () => { try{ resolve(data ? JSON.parse(data) : {}); }catch(e){ reject(e); } });
-    req.on('error', reject);
-  });
-}
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
 
-export default async function handler(req, res){
-  if(!checkAdminAuth(req)) return res.status(401).json({ error: 'unauthorized' });
-  if(req.method !== 'POST') return res.status(405).json({ error: 'method' });
-  try{
-    const body = await readJSON(req);
-    const { url, name } = body || {};
-    if(!url) return res.status(400).json({ error: 'url required' });
-    if(RSS_FEEDS.some(f => f.url === url)) return res.status(200).json({ ok: false, message: 'already exists' });
+  if (req.method !== 'POST') {
+    return res.status(405).json({ ok: false, error: 'Method not allowed' });
+  }
+
+  // Verify JWT authentication
+  if (!requireAuth(req, res)) {
+    return;
+  }
+
+  try {
+    const { url, name } = req.body || {};
+    if (!url) {
+      return res.status(400).json({ ok: false, error: 'url required' });
+    }
+
+    if (RSS_FEEDS.some(f => f.url === url)) {
+      return res.status(200).json({ ok: false, message: 'already exists' });
+    }
+
     RSS_FEEDS.push({ url, name: name || 'manual' });
     feedFailures.set(url, 0);
     blacklistedFeeds.delete(url);
     return res.status(200).json({ ok: true, url });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+}
   }catch(e){ return res.status(500).json({ ok:false, error: e.message || String(e) }); }
 }
