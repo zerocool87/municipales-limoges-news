@@ -1,10 +1,10 @@
-import { getMatches, fetchRssFeeds, readRemovedTags, normalizeTextSimple, isStrictMatch } from '../lib/news.js';
+import { getMatches, fetchRssFeeds, readRemovedTags, normalizeTextSimple, isStrictMatch, sameText } from '../lib/news.js';
 import fetch from 'node-fetch';
 
 // Near-duplicate title deduplication helpers
 function titleKey(title){ return (normalizeTextSimple(title||'')||'').replace(/[^a-z0-9]+/g,' ').trim(); }
 function wordsOfTitle(t){ return (titleKey(t)||'').split(/\s+/).filter(Boolean); }
-const preferredHosts = ['lepopulaire.fr','francebleu.fr','lamontagne.fr','actu.fr','france3','lepopulaire','francebleu','lamontagne'];
+const preferredHosts = ['lepopulaire.fr','francebleu.fr','lamontagne.fr','actu.fr','france3','lepopulaire','le populaire','francebleu','lamontagne'];
 const candidateNames = ['damien maudet','maudet','émile roger lombertie','emile roger lombertie','lombertie','emile roger','yoann balestrat','balestrat','hervé beaudet','herve beaudet','beaudet'];
 const EXCLUDED_SOURCES = ['linternaute.com', 'linternaute'];
 
@@ -120,7 +120,8 @@ export default async function handler(req, res){
           if (data.status !== 'ok' || !(data.articles || []).length) break;
           const mapped = (data.articles || []).map(a => {
             const title = a.title;
-            const description = a.description;
+            let description = a.description;
+            if (sameText(title, description)) description = null;
             let matches = getMatches((title || '') + ' ' + (description || ''));
             const primaryMatch = matches.length ? matches[0] : null;
             return { 
@@ -250,8 +251,15 @@ export default async function handler(req, res){
       monthlyArticles[month] = monthlyArticles[month].slice(0, articlesPerMonth);
     }
 
+    // helper to strip redundant descriptions
+    function stripDescriptions(arr){
+      return arr.map(a => { const c = Object.assign({}, a); if (!c.description || sameText(c.title, c.description)) delete c.description; return c; });
+    }
+
     // 10. Return results
-    const finalArticles = allArticles.slice(0, limit);
+    const finalArticles = stripDescriptions(allArticles.slice(0, limit));
+    const cleanedMonthly = {};
+    for (const month of monthOrder) cleanedMonthly[month] = stripDescriptions(monthlyArticles[month] || []);
     
     if (finalArticles.length === 0) {
       return res.status(200).json({ 
@@ -266,7 +274,7 @@ export default async function handler(req, res){
 
     return res.status(200).json({ 
       articles: finalArticles, 
-      monthlyArticles,
+      monthlyArticles: cleanedMonthly,
       months: monthOrder,
       source: sources.join('+'), 
       strict,

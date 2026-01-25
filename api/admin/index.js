@@ -103,6 +103,7 @@ export default async (req, res) => {
     <h1>🔧 Gestion des flux RSS</h1>
     <div class="controls">
       <button id="refresh">🔄 Rafraîchir</button>
+      <button id="cleanup">🧹 Nettoyer descriptions</button>
       <button id="logout">🚪 Déconnexion</button>
     </div>
 
@@ -135,13 +136,75 @@ export default async (req, res) => {
       <h2>Alternatives</h2>
       <pre id="alternatives"></pre>
     </section>
-
+    <section class="panel">
+      <h2>Historique des nettoyages</h2>
+      <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:.6rem"><button id="refresh-logs">🔁 Rafraîchir</button><button id="run-cleanup">🧹 Nettoyer maintenant</button></div>
+      <pre id="cleanup-logs" style="max-height:320px;overflow:auto;padding:.8rem;border-radius:8px;background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.04)"></pre>
+    </section>
     <div class="notes">Note: si vous avez défini <code>ADMIN_TOKEN</code> dans votre \`.env\`, renseignez le token ci-dessus et cliquez sur <em>Rafraîchir</em>.</div>
   </main>
 
   <script src="/admin.js"><\/script>
+  <script>
+    (function(){
+      const cleanupBtn = document.getElementById('cleanup');
+      const msgEl = document.getElementById('add-msg');
+      const logsEl = document.getElementById('cleanup-logs');
+      const refreshLogsBtn = document.getElementById('refresh-logs');
+      const runNowBtn = document.getElementById('run-cleanup');
+
+      async function loadLogs(){
+        if(!logsEl) return;
+        logsEl.textContent = 'Chargement...';
+        try{
+          const res = await fetch('/admin/cleanup-logs', { credentials: 'same-origin' });
+          const data = await res.json().catch(()=>({}));
+          if(!res.ok) { logsEl.textContent = 'Erreur: '+(data.error||res.status); return; }
+          if(!data.logs || !data.logs.length){ logsEl.textContent = 'Aucun historique.'; return; }
+          logsEl.textContent = data.logs.map(l=>`${l.ts} — ${l.user} — ${l.changedCount} fichiers modifiés\n${JSON.stringify(l.results,null,2)}`).join('\n\n');
+        }catch(e){ logsEl.textContent = 'Erreur: '+(e && e.message ? e.message : String(e)); }
+      }
+
+      if(refreshLogsBtn) refreshLogsBtn.addEventListener('click', loadLogs);
+
+      if(runNowBtn){
+        runNowBtn.addEventListener('click', async function(){
+          if(!confirm('Exécuter le nettoyage des descriptions dans le dossier data ?')) return;
+          runNowBtn.disabled = true; runNowBtn.textContent = 'Nettoyage...';
+          try{
+            const res = await fetch('/admin/cleanup-descriptions', { method: 'POST', credentials: 'same-origin' });
+            const data = await res.json().catch(()=>({}));
+            if(!res.ok) { alert('Erreur: '+(data.error||res.status)); return; }
+            alert('Nettoyé: '+(data.changedCount||0)+' fichier(s) modifié(s).');
+            loadLogs();
+          }catch(e){ alert('Erreur: '+(e && e.message ? e.message : String(e))); }
+          finally{ runNowBtn.disabled = false; runNowBtn.textContent = '🧹 Nettoyer maintenant'; }
+        });
+      }
+
+      if(cleanupBtn){
+        cleanupBtn.addEventListener('click', async function(){
+          if(!confirm('Exécuter le nettoyage des descriptions dans le dossier data ?')) return;
+          msgEl.textContent = 'Nettoyage en cours...';
+          cleanupBtn.disabled = true;
+          try{
+            const res = await fetch('/admin/cleanup-descriptions', { method: 'POST', credentials: 'same-origin' });
+            const data = await res.json().catch(()=>({}));
+            if(!res.ok) { msgEl.textContent = 'Erreur: ' + (data.error || res.status); return; }
+            const changed = (data.results || []).filter(r=>r.changed).length;
+            msgEl.textContent = `Nettoyé: ${changed} fichier(s) modifié(s).`;
+            loadLogs();
+          }catch(e){ msgEl.textContent = 'Erreur: ' + (e && e.message ? e.message : String(e)); }
+          finally{ cleanupBtn.disabled = false; }
+        });
+      }
+
+      // auto-load on open
+      document.addEventListener('DOMContentLoaded', loadLogs);
+    })();
+  <\/script>
 </body>
-</html>`);
+</html>`;
   }
 
   res.status(405).json({ ok: false, error: 'Method not allowed' });

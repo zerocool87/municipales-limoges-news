@@ -130,7 +130,6 @@ select#filter-town option:hover{ background:rgba(255,255,255,0.03); }
 .title:hover{filter:brightness(1.06);text-decoration:underline}
 
 .meta{color:var(--muted);font-size:.86rem;margin:.35rem 0}
-.desc{margin:0;color:var(--desc)}
 
 /* Neon accent bar */
 .article .meta::before{content:'';display:inline-block;width:10px;height:10px;margin-right:.6rem;border-radius:3px;background:linear-gradient(90deg,#ff3b3b 0%,#39ff66 50%,#00f0ff 100%);box-shadow:0 0 8px rgba(255,59,59,0.06), 0 0 12px rgba(57,255,102,0.06), 0 0 18px rgba(0,240,255,0.06)}

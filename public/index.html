@@ -325,7 +325,6 @@
           <a class="title" href="${a.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(a.title)}</a>
           <div class="meta">${escapeHtml(a.source || '')} — ${a.publishedAt ? new Date(a.publishedAt).toLocaleString() : ''}</div>
           ${matchesHtml ? `<div class="matches">${matchesHtml}</div>` : ''}
-          <p class="desc">${escapeHtml(a.description || '')}</p>
         `;
         // add highlight class if this article mentions Maudet
         const isMaudet = (a.matches || []).some(m => normalizeString(m).includes('maudet') || normalizeString(m) === 'maudet');
@@ -373,6 +372,9 @@
 
     // utility: normalize for comparison and escape for HTML injection safety
     function normalizeString(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+
+// Compare two strings after normalization, collapsing whitespace and trimming
+function sameText(a,b){ const na = (normalizeString(a)||'').replace(/\s+/g,' ').trim(); const nb = (normalizeString(b)||'').replace(/\s+/g,' ').trim(); return na === nb; }
     function escapeHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
     // tag click handler (delegation) — removed/restore actions hidden; click applies filter

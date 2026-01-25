@@ -8,35 +8,7 @@
     "name": "France Bleu"
   },
   {
-    "url": "https://news.google.com/rss/search?q=site:lepopulaire.fr+Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr",
-    "name": "Google News (Le Populaire - Limoges)"
-  },
-  {
     "url": "https://news.google.com/rss/search?q=site:lepopulaire.fr+Haute-Vienne+municipales+2026&hl=fr&gl=FR&ceid=FR:fr",
     "name": "Google News (Le Populaire - Haute-Vienne)"
-  },
-  {
-    "url": "https://news.google.com/rss/search?q=site:lamontagne.fr+Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr",
-    "name": "Google News (La Montagne - Limoges)"
-  },
-  {
-    "url": "https://news.google.com/rss/search?q=site:actu.fr+Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr",
-    "name": "Google News (Actu.fr - Limoges)"
-  },
-  {
-    "url": "https://france3-regions.francetvinfo.fr/nouvelle-aquitaine/rss",
-    "name": "France 3 Nouvelle Aquitaine"
-  },
-  {
-    "url": "https://news.google.com/rss/search?q=site:francebleu.fr+Limoges+municipales+2026&hl=fr&gl=FR&ceid=FR:fr",
-    "name": "Google News (France Bleu - Limoges)"
-  },
-  {
-    "url": "https://news.google.com/rss/search?q=élections+municipales+Limoges+2026&hl=fr&gl=FR&ceid=FR:fr",
-    "name": "Google News (élections municipales)"
-  },
-  {
-    "url": "https://news.google.com/rss/search?q=municipales+Limoges+candidats&hl=fr&gl=FR&ceid=FR:fr",
-    "name": "Google News (candidats Limoges)"
   }
 ]

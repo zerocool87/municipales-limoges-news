@@ -1,13 +1,14 @@
 import express from 'express';
 import fetch from 'node-fetch';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import Parser from 'rss-parser';
 import fs from 'fs/promises';
 import jwt from 'jsonwebtoken';
-import { RSS_FEEDS, ALTERNATIVE_FEEDS as LIB_ALTERNATIVE_FEEDS, getMatches, isStrictMatch, normalizeTextSimple } from './lib/news.js';
+import { RSS_FEEDS, ALTERNATIVE_FEEDS as LIB_ALTERNATIVE_FEEDS, getMatches, isStrictMatch, normalizeTextSimple, TOWN_KEYS } from './lib/news.js';
 import { 
   deduplicateSimilarTitles, 
   deduplicateByUrl, 
@@ -43,9 +44,10 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type']
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -141,10 +143,22 @@ const MAX_FEED_FAILURES = 3;
 // Maximum article age in days (1 month ≈ 30 days)
 const MAX_AGE_DAYS = 30; // articles older than this are ignored
 
+// Compare two strings after normalization, collapsing whitespace and trimming
+function sameText(a, b){ const norm = s => (normalizeTextSimple(s)||'').replace(/\s+/g,' ').trim().toLowerCase(); return norm(a) === norm(b); }
+
 // --- Persistent storage for globally removed tags (file-based fallback)
 const DATA_DIR = path.join(__dirname, 'data');
 const REMOVED_TAGS_FILE = path.join(DATA_DIR, 'removedTags.json');
 const FEEDS_FILE = path.join(DATA_DIR, 'feeds.json');
+const LOG_FILE = path.join(DATA_DIR, 'cleanupLogs.json');
+
+async function readCleanupLogs(){
+  try{ await ensureDataDir(); const raw = await fs.readFile(LOG_FILE, 'utf8'); const data = raw.trim() || '[]'; return JSON.parse(data); }catch(e){ if(e.code === 'ENOENT') return []; console.warn('readCleanupLogs failed:', e && e.message ? e.message : e); return []; }
+}
+
+async function writeCleanupLogs(arr){
+  try{ await ensureDataDir(); const toSave = Array.isArray(arr) ? arr.slice(-200) : []; await fs.writeFile(LOG_FILE, JSON.stringify(toSave, null, 2), 'utf8'); }catch(e){ console.error('writeCleanupLogs failed:', e && e.message ? e.message : e); throw e; }
+} 
 
 async function ensureDataDir(){
   try{ await fs.mkdir(DATA_DIR, { recursive: true }); }catch(e){ console.warn('Could not create data dir', e && e.message ? e.message : e); }
@@ -344,7 +358,8 @@ app.get('/api/news', async (req, res) => {
         if (data.status !== 'ok' || !(data.articles || []).length) break;
         const mapped = (data.articles || []).map(a => {
           const title = a.title;
-          const description = a.description;
+          let description = a.description;
+          if (sameText(title, description)) description = null;
           let matches = getMatches((title || '') + ' ' + (description || ''));
           const primaryMatch = matches.length ? matches[0] : null;
           return { 
@@ -372,48 +387,73 @@ app.get('/api/news', async (req, res) => {
   }
 
   // 3. Exclude disallowed sources
-  allArticles = allArticles.filter(a => !isExcludedSource(a));
+  const rejections = [];
+  const filteredBySource = [];
+  for (const a of allArticles) {
+    if (isExcludedSource(a)) {
+      rejections.push({ title: a.title, url: a.url, source: a.source, publishedAt: a.publishedAt, reasons: ['excluded_source'] });
+    } else filteredBySource.push(a);
+  }
+  allArticles = filteredBySource;
 
   // 4. Apply removed tags filter
   try {
     const removedArr = (await readRemovedTags()).map(r => normalizeTextSimple(r));
-    allArticles.forEach(a => {
-      if (a.matches) {
+    const afterRemovedTags = [];
+    for (const a of allArticles){
+      if (a.matches){
         a.matches = a.matches.filter(m => {
           const nm = normalizeTextSimple(m);
           return !removedArr.some(rn => nm.includes(rn) || rn.includes(nm));
         });
       }
-    });
+      if (!a.matches || a.matches.length === 0){
+        // no matches left -> rejected
+        rejections.push({ title: a.title, url: a.url, source: a.source, publishedAt: a.publishedAt, reasons: ['no_matches_after_removed_tags'] });
+      } else {
+        afterRemovedTags.push(a);
+      }
+    }
+    allArticles = afterRemovedTags;
   } catch(e) { console.warn('removed tags filtering failed', e); }
 
   // 5. Filter by date (last 60 days)
   const cutoff = new Date(Date.now() - 60 * 24 * 3600 * 1000);
-  allArticles = allArticles.filter(a => {
-    if (!a.publishedAt) return true; // keep articles without date
+  const afterDate = [];
+  for (const a of allArticles){
+    if (!a.publishedAt){ afterDate.push(a); continue; } // keep articles without date
     const pd = new Date(a.publishedAt);
-    if (isNaN(pd)) return true;
-    return pd >= cutoff;
-  });
+    if (isNaN(pd)) { afterDate.push(a); continue; }
+    if (pd < cutoff){ rejections.push({ title: a.title, url: a.url, source: a.source, publishedAt: a.publishedAt, reasons: ['too_old'] }); }
+    else afterDate.push(a);
+  }
+  allArticles = afterDate;
 
   // 6. Apply strict filtering (Limoges + election keywords) if requested
   if (strict) {
-    allArticles = allArticles.filter(a => isStrictMatch(a.matches || [], { 
-      source: a.source, 
-      url: a.url, 
-      title: a.title, 
-      description: a.description 
-    }));
+    const afterStrict = [];
+    for (const a of allArticles){
+      if (!isStrictMatch(a.matches || [], { source: a.source, url: a.url, title: a.title, description: a.description })){ 
+        rejections.push({ title: a.title, url: a.url, source: a.source, publishedAt: a.publishedAt, reasons: ['strict_filter'] });
+      } else afterStrict.push(a);
+    }
+    allArticles = afterStrict;
   }
 
   // 7. Remove Google News wrappers when a direct source exists
   allArticles = removeGoogleWrappers(allArticles);
 
   // 7b. Deduplicate near-duplicate titles across sources
+  const beforeDedupKeys = new Set(allArticles.map(a => a.url || titleKey(a.title || '')));
   allArticles = deduplicateSimilarTitles(allArticles);
+  const afterDedupKeys = new Set(allArticles.map(a => a.url || titleKey(a.title || '')));
+  for (const k of beforeDedupKeys) if (!afterDedupKeys.has(k)) rejections.push({ title: k, reasons: ['deduplicated_similar_title'] });
 
   // 8. Deduplicate by exact URL to remove strict duplicates
+  const beforeUrlKeys = new Set(allArticles.map(a => a.url || ''));
   allArticles = deduplicateByUrl(allArticles);
+  const afterUrlKeys = new Set(allArticles.map(a => a.url || ''));
+  for (const u of beforeUrlKeys) if (!afterUrlKeys.has(u)) rejections.push({ title: u, reasons: ['deduplicated_by_url'] });
 
   // 9. Sort by date (most recent first)
   allArticles = sortByDate(allArticles);
@@ -440,8 +480,19 @@ app.get('/api/news', async (req, res) => {
     monthlyArticles[month] = monthlyArticles[month].slice(0, articlesPerMonth);
   }
 
+  // helper to remove redundant/empty descriptions
+  function stripDescriptions(arr){
+    return arr.map(a => {
+      const c = Object.assign({}, a);
+      if (!c.description || sameText(c.title, c.description)) delete c.description;
+      return c;
+    });
+  }
+
   // 10. Return results
-  const finalArticles = allArticles.slice(0, limit);
+  const finalArticles = stripDescriptions(allArticles.slice(0, limit));
+  const cleanedMonthly = {};
+  for (const month of monthOrder){ cleanedMonthly[month] = stripDescriptions(monthlyArticles[month] || []); }
   
   if (finalArticles.length === 0) {
     return res.json({ 
@@ -456,12 +507,12 @@ app.get('/api/news', async (req, res) => {
 
   return res.json({ 
     articles: finalArticles, 
-    monthlyArticles,
+    monthlyArticles: cleanedMonthly,
     months: monthOrder,
     source: sources.join('+'), 
     strict,
     count: finalArticles.length,
-    debug: debugReq ? { totalBeforeLimit: allArticles.length } : undefined
+    debug: debugReq ? { totalBeforeLimit: allArticles.length, rejected: rejections.slice(0,200) } : undefined
   });
 });
 
@@ -548,7 +599,8 @@ async function fetchAndParseFeed(url, limit = 5){
 
     const items = (feed.items || []).slice(0, limit).map(it => {
       const title = it.title;
-      const description = it.contentSnippet || it.content || it.summary || '';
+      let description = it.contentSnippet || it.content || it.summary || '';
+      if (sameText(title, description)) description = null;
       const urlItem = it.link;
       const publishedAt = it.isoDate || it.pubDate || null;
       let matches = getMatches((title || '') + ' ' + (description || ''));
@@ -662,9 +714,71 @@ app.post('/admin/feeds/unblacklist', (req, res) => {
   res.json({ ok: true, url });
 });
 
+// Admin: run a cleanup pass to remove redundant descriptions from data/*.json
+app.post('/admin/cleanup-descriptions', async (req, res) => {
+  if(!checkAdminAuth(req)) return res.status(401).json({ ok: false, error: 'unauthorized' });
+  try {
+    await ensureDataDir();
+    const files = await fs.readdir(DATA_DIR);
+    const results = [];
+    let changedCount = 0;
+    for (const file of files) {
+      if (!file.endsWith('.json')) continue;
+      const fp = path.join(DATA_DIR, file);
+      try {
+        const raw = await fs.readFile(fp, 'utf8');
+        const data = JSON.parse(raw);
+        let changed = false;
+        (function walk(obj){
+          if (Array.isArray(obj)) return obj.forEach(walk);
+          if (obj && typeof obj === 'object'){
+            if ('title' in obj && 'description' in obj){
+              if (!obj.description || sameText(obj.title, obj.description)) { delete obj.description; changed = true; }
+            }
+            Object.values(obj).forEach(walk);
+          }
+        })(data);
+        if (changed){
+          await fs.writeFile(fp, JSON.stringify(data, null, 2), 'utf8');
+          changedCount++;
+        }
+        results.push({ file, changed });
+      } catch(e){ results.push({ file, changed: false, error: e.message || String(e) }); }
+    }
+
+    // append log entry
+    const token = req.headers.authorization?.split(' ')[1] || req.cookies?.auth_token;
+    let user = 'unknown';
+    try{ if (token) user = jwt.verify(token, JWT_SECRET).user || user; }catch(e){}
+    const logs = await readCleanupLogs();
+    const entry = { ts: new Date().toISOString(), user, results, changedCount };
+    logs.push(entry);
+    await writeCleanupLogs(logs);
+
+    return res.json({ ok: true, results, changedCount });
+  } catch (e) {
+    console.error('Cleanup error', e && e.message ? e.message : e);
+    return res.status(500).json({ ok: false, error: e && e.message ? e.message : String(e) });
+  }
+});
+
+// GET logs
+app.get('/admin/cleanup-logs', async (req, res) => {
+  if(!checkAdminAuth(req)) return res.status(401).json({ ok: false, error: 'unauthorized' });
+  try{
+    const logs = await readCleanupLogs();
+    return res.json({ ok: true, logs });
+  }catch(e){ console.error('GET logs failed', e && e.message ? e.message : e); return res.status(500).json({ ok: false }); }
+});
+
 // Serve login page
 app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+// Provide towns list (from lib/news.js TOWN_KEYS)
+app.get('/api/towns', (req, res) => {
+  res.json({ towns: TOWN_KEYS });
 });
 
 // Serve frontend (catch-all)
