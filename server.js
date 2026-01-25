@@ -787,4 +787,32 @@ app.get('*', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+
+// Start server with a short delay to reduce race conditions during rapid restarts (nodemon)
+function startServer(){
+  try{
+    const server = app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+
+    server.on('error', (err) => {
+      if (err && err.code === 'EADDRINUSE') {
+        console.error(`[ERROR] Port ${PORT} already in use.`);
+        // Don't attempt to start a second server; exit to let supervisor restart cleanly
+        process.exit(1);
+      }
+      console.error('Server error', err);
+    });
+  }catch(e){
+    console.error('Failed to start server', e && e.message ? e.message : e);
+    process.exit(1);
+  }
+}
+
+setTimeout(startServer, 200);
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception', err && err.stack ? err.stack : err);
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Rejection', reason);
+});

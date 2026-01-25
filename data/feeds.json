@@ -10,5 +10,9 @@
   {
     "url": "https://news.google.com/rss/search?q=site:lepopulaire.fr+Haute-Vienne+municipales+2026&hl=fr&gl=FR&ceid=FR:fr",
     "name": "Google News (Le Populaire - Haute-Vienne)"
+  },
+  {
+    "url": "https://news.google.com/rss/search?q=damien+maudet+election+limoges&hl=fr&gl=FR&ceid=FR:fr",
+    "name": "Google News (Damien Maudet - Limoges élections)"
   }
 ]
