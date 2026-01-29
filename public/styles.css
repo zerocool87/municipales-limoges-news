@@ -1,17 +1,17 @@
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Condensed:wght@300;400;700&display=swap');
 
 :root{
-  --bg:#071021;
-  --bg-accent: radial-gradient(circle at 20% 20%,rgba(0,240,255,0.1),transparent 35%),radial-gradient(circle at 80% 10%,rgba(255,45,166,0.1),transparent 30%),linear-gradient(180deg,#071021,#041018);
-  --card: rgba(255,255,255,0.04);
-  --muted: #9aa3b2;
-  --neon-pink: #ff2da6;
-  --neon-blue: #00f0ff;
-  --title: #cce9ff;
-  --neon-green: #9eff6b;
-  --glass-border: rgba(255,255,255,0.06);
-  --text: #e6f7ff;
-  --desc: #dbeeff;
+  --bg:#16243a;
+  --bg-accent: radial-gradient(circle at 20% 20%,rgba(0,240,255,0.13),transparent 35%),radial-gradient(circle at 80% 10%,rgba(255,45,166,0.13),transparent 30%),linear-gradient(180deg,#16243a,#24324a);
+  --card: rgba(255,255,255,0.07);
+  --muted: #b6c2d2;
+  --neon-pink: #ff5fcf;
+  --neon-blue: #33e0ff;
+  --title: #e0f3ff;
+  --neon-green: #baff9e;
+  --glass-border: rgba(255,255,255,0.09);
+  --text: #eaf6ff;
+  --desc: #e3f0ff;
 }
 
 /* Light mode variables */
