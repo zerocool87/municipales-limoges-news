@@ -14,6 +14,21 @@
   --desc: #dbeeff;
 }
 
+/* Light mode variables */
+:root[data-theme="light"]{
+  --bg:#f5f7fa;
+  --bg-accent: radial-gradient(circle at 20% 20%,rgba(0,240,255,0.05),transparent 35%),radial-gradient(circle at 80% 10%,rgba(255,45,166,0.05),transparent 30%),linear-gradient(180deg,#f5f7fa,#e8ecf1);
+  --card: rgba(0,0,0,0.04);
+  --muted: #5a6470;
+  --neon-pink: #d61a8c;
+  --neon-blue: #0099aa;
+  --title: #1a3a5c;
+  --neon-green: #5cb85c;
+  --glass-border: rgba(0,0,0,0.08);
+  --text: #1a1a2e;
+  --desc: #2d3748;
+}
+
 *{box-sizing:border-box}
 html,body{height:100%}
 body{font-family:system-ui,'Segoe UI',Roboto,Arial,sans-serif; color:var(--text); background:var(--bg-accent), var(--bg); margin:0; padding:1.5rem; transition: background .25s ease, color .2s ease}
@@ -33,6 +48,26 @@ h1{
 .subtitle{margin:.25rem 0 1.5rem;color:var(--muted);font-size:.95rem}
 
 .controls{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin-bottom:1.5rem;padding:0.75rem 1rem;border:1px solid rgba(255,255,255,0.05);border-radius:10px;background:rgba(255,255,255,0.03)}
+
+/* Dark mode toggle button */
+#theme-toggle{
+  background:linear-gradient(120deg, #ffd700, #ff8c00);
+  color:#1a1a2e;
+  border:0;
+  padding:.55rem .9rem;
+  border-radius:10px;
+  cursor:pointer;
+  font-weight:800;
+  transition:transform .1s ease,box-shadow .1s ease;
+  box-shadow:0 10px 25px rgba(0,0,0,0.35);
+}
+#theme-toggle:hover{
+  box-shadow:0 12px 30px rgba(0,0,0,0.35);
+  transform:translateY(-1px);
+}
+#theme-toggle .icon{
+  margin-right:.3rem;
+}
 .visually-hidden{position:absolute!important;height:1px;width:1px;overflow:hidden;clip:rect(1px,1px,1px,1px);white-space:nowrap;border:0;padding:0;margin:-1px}
 button{background:linear-gradient(120deg,#00f0ff,#ff2da6);color:#041018;border:0;padding:.55rem .9rem;border-radius:10px;cursor:pointer;font-weight:800;transition:transform .1s ease,box-shadow .1s ease;-webkit-tap-highlight-color:rgba(0,0,0,0);touch-action:manipulation;box-shadow:0 10px 25px rgba(0,0,0,0.35)}
 @media (hover: hover){

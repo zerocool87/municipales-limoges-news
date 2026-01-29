@@ -222,13 +222,6 @@ export default async function handler(req, res){
       return dateB - dateA;
     });
 
-    // 9. Sort by date (most recent first)
-    allArticles.sort((a, b) => {
-      const dateA = a.publishedAt ? new Date(a.publishedAt) : new Date(0);
-      const dateB = b.publishedAt ? new Date(b.publishedAt) : new Date(0);
-      return dateB - dateA;
-    });
-
     // Group articles by month (YYYY-MM)
     const monthlyArticles = {};
     const monthOrder = [];

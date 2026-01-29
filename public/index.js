@@ -48,7 +48,7 @@ async function loadNews(opts = {}) {
     renderArticles(payload.articles);
     
     if (notify) {
-      showToast(`${data.length} articles chargés`);
+      showToast(`${payload.articles.length} articles chargés`);
     }
   } catch (e) {
     statusEl.textContent = `Erreur: ${e.message || String(e)}`;

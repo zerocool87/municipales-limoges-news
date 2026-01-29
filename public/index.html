@@ -25,6 +25,7 @@
     <div class="controls">
       <button id="refresh">🔄 Rafraîchir</button>
       <button id="filter-maudet" title="Mettre en évidence Maudet">🔎 Maudet</button>
+      <button id="theme-toggle" title="Changer le thème"><span class="icon">🌙</span> Mode</button>
       <label for="filter-town" class="visually-hidden">Filtrer par ville</label>
       <!-- keep the native select for accessibility but hide it; custom listbox provides the visual style -->
       <select id="filter-town" title="Filtrer par ville" aria-hidden="true" style="position:absolute;left:-9999px;top:auto;opacity:0;pointer-events:none;">
@@ -441,6 +442,34 @@ function sameText(a,b){ const na = (normalizeString(a)||'').replace(/\s+/g,' ').
           updateMonthTabs();
         });
         tabsContainer.appendChild(btn);
+      }
+    }
+
+    // Theme toggle functionality
+    const themeToggle = document.getElementById('theme-toggle');
+    const themeIcon = themeToggle ? themeToggle.querySelector('.icon') : null;
+    
+    // Load saved theme preference
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateThemeIcon(savedTheme);
+    
+    if (themeToggle) {
+      themeToggle.addEventListener('click', () => {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        updateThemeIcon(newTheme);
+      });
+    }
+    
+    function updateThemeIcon(theme) {
+      if (themeIcon) {
+        themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
+      }
+      if (themeToggle) {
+        themeToggle.title = theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre';
       }
     }
   </script>
