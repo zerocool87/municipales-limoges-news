@@ -5,15 +5,6 @@
     { "src": "^/$", "dest": "/api/index.js" },
     { "src": "/login$", "dest": "/api/login.js" },
     { "src": "/login.html", "dest": "/api/login.js" },
-    { "src": "/admin$", "dest": "/api/admin/index.js" },
-    { "src": "/admin.html", "dest": "/api/admin/index.js" },
-    { "src": "/admin/login", "dest": "/api/admin/login.js", "methods": ["POST", "OPTIONS"] },
-    { "src": "/admin/feeds/test", "dest": "/api/admin/feeds/test.js", "methods": ["POST", "OPTIONS"] },
-    { "src": "/admin/feeds/add", "dest": "/api/admin/feeds/add.js", "methods": ["POST", "OPTIONS"] },
-    { "src": "/admin/feeds/remove", "dest": "/api/admin/feeds/remove.js", "methods": ["POST", "OPTIONS"] },
-    { "src": "/admin/feeds/unblacklist", "dest": "/api/admin/feeds/unblacklist.js", "methods": ["POST", "OPTIONS"] },
-    { "src": "/admin/feeds/update", "dest": "/api/admin/feeds/update.js", "methods": ["POST", "OPTIONS"] },
-    { "src": "/admin/feeds", "dest": "/api/admin/feeds/index.js", "methods": ["GET", "OPTIONS"] },
     { "src": "/api/(.*)", "dest": "/api/$1" },
     { "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|eot))", "dest": "/public/$1" }
   ]

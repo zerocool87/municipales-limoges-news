@@ -123,21 +123,8 @@ if (refreshBtn) {
   refreshBtn.addEventListener('click', () => loadNews({ notify: true }));
 }
 
-// debug toggle
-const debugToggle = document.createElement('button');
-debugToggle.textContent = '🐞 Debug';
-debugToggle.style.marginLeft = '0.6rem';
-let debugMode = false;
-debugToggle.addEventListener('click', () => {
-  debugMode = !debugMode;
-  debugToggle.classList.toggle('active', debugMode);
-  document.querySelector('#status').textContent = debugMode ? 'Mode debug activé' : 'Mode debug désactivé';
-  loadNews();
-});
-const controls = document.querySelector('.controls'); if (controls) controls.appendChild(debugToggle);
-
 document.addEventListener('DOMContentLoaded', () => {
-  loadNews({ debug: debugMode });
+  loadNews();
 });
 
 // Auto-refresh every 5 minutes
