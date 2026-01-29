@@ -108,6 +108,9 @@ async function populateTowns(articles){
         for(const t of towns){ if (nm === normalize(t) || nm.includes(normalize(t))) obs.add(t); }
       }
     }
+    // Ensure specific town is available in the listbox if the server provides it
+    if (towns.includes('le palais sur vienne')) obs.add('le palais sur vienne');
+
     const select = document.getElementById('filter-town');
     if(!select) return;
     const prev = select.value || '';
