@@ -1,5 +1,5 @@
 {
-  "name": "ai-news-today",
+  "name": "municipales-limoges-news",
   "version": "0.1.0",
   "description": "Interface simple qui récupère 10 news du jour sur l'IA",
   "main": "server.js",
