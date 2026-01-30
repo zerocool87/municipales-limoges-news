@@ -7,3 +7,8 @@ node_modules
 .env*.local
 server.log
 server_pref.log
+
+text.vercel/ 
+.next/ 
+dist/ 
+build/
