@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "npm install",
+  "buildCommand": "npm install & npm run build",
   "routes": [
     { "src": "^/$", "dest": "/api/index.js" },
     { "src": "/login$", "dest": "/api/login.js" },
