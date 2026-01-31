@@ -2,6 +2,9 @@
   "version": 2,
   "buildCommand": "npm install",
   "regions": ["cdg1"],
+  "git": {
+    "branch": "preview"
+  },
   "routes": [
     { "src": "^/$", "dest": "/api/index.js" },
     { "src": "/login$", "dest": "/api/login.js" },
