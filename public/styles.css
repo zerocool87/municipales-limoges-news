@@ -29,7 +29,40 @@
   --desc: #2d3748;
 }
 
-*{box-sizing:border-box}
+/* Cyberpunk theme variables */
+:root[data-theme="cyberpunk"]{
+  --bg: #00040a;
+  --bg-accent: radial-gradient(circle at 20% 20%, rgba(0,240,255,0.09), transparent 30%), radial-gradient(circle at 80% 10%, rgba(255,45,166,0.09), transparent 30%), linear-gradient(180deg, #02040a, #05020a);
+  --card: rgba(255,255,255,0.02);
+  --muted: #9fb7c6;
+  --neon-pink: #ff2da6;
+  --neon-blue: #00f0ff;
+  --title: #ffd7ff;
+  --neon-green: #9eff6b;
+  --glass-border: rgba(255,255,255,0.05);
+  --text: #e6f7ff;
+  --desc: #cfe8ff;
+}
+
+/* Neon animations for cyberpunk */
+@keyframes neon-glow {
+  0%, 100% { text-shadow: 0 0 6px rgba(255,45,166,0.12), 0 0 22px rgba(0,240,255,0.06); }
+  50% { text-shadow: 0 0 10px rgba(255,45,166,0.18), 0 0 30px rgba(0,240,255,0.12); }
+}
+
+html[data-theme="cyberpunk"] h1{
+  color: var(--neon-pink);
+  text-shadow: 0 0 8px rgba(255,45,166,0.16), 0 0 24px rgba(0,240,255,0.08);
+  animation: neon-glow 3.6s ease-in-out infinite;
+  letter-spacing: .8px;
+}
+
+html[data-theme="cyberpunk"] .article{
+  border-color: rgba(255,45,166,0.18);
+  box-shadow: 0 30px 70px rgba(255,45,166,0.06), 0 0 40px rgba(0,240,255,0.04);
+}
+
+*{box-sizing:border-box} 
 html,body{height:100%}
 body{font-family:system-ui,'Segoe UI',Roboto,Arial,sans-serif; color:var(--text); background:var(--bg-accent), var(--bg); margin:0; padding:1.5rem; transition: background .25s ease, color .2s ease}
 
@@ -58,12 +91,20 @@ h1{
   border-radius:10px;
   cursor:pointer;
   font-weight:800;
-  transition:transform .1s ease,box-shadow .1s ease;
+  transition:transform .12s ease,box-shadow .12s ease,outline .12s ease;
   box-shadow:0 10px 25px rgba(0,0,0,0.35);
 }
 #theme-toggle:hover{
   box-shadow:0 12px 30px rgba(0,0,0,0.35);
   transform:translateY(-1px);
+}
+#theme-toggle:focus{
+  outline:none;
+  box-shadow:0 0 0 4px rgba(0,240,255,0.12), 0 12px 30px rgba(0,0,0,0.35);
+  transform:translateY(-1px);
+}
+#theme-toggle:active{
+  transform:translateY(0);
 }
 #theme-toggle .icon{
   margin-right:.3rem;

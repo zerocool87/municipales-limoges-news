@@ -1,0 +1,10 @@
+[00:00:00.448] Server  LOG     ✓ Ready in 287ms
+[00:00:03.925] Server  WARN    ⚠ Blocked cross-origin request from 127.0.0.1 to /_next/* resource. To allow this, configure "allowedDevOrigins" in next.config
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+[00:00:04.004] Server  LOG     Loaded 3 feeds from /home/zero/Documents/CodeIA/municipales-limoges-news/data/feeds.json
+[00:13:34.714] Server  LOG     ✓ Compiled in 8ms
+[00:13:41.851] Server  LOG     ✓ Compiled in 7ms
+[00:14:33.761] Server  LOG     ✓ Compiled in 6ms
+[00:15:38.862] Server  LOG     ✓ Compiled in 4ms
+[00:17:04.561] Server  LOG     ✓ Compiled in 4ms
+[00:18:32.337] Server  LOG     ✓ Compiled in 4ms

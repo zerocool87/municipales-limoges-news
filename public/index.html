@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#071021" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <!-- Set a default theme here (dark|cyberpunk|light). You can also force a theme at runtime with `?theme=cyberpunk` in the URL. -->
+  <meta name="default-theme" content="" />
   <title>Municipales 2026 News V3</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
@@ -448,28 +450,34 @@ function sameText(a,b){ const na = (normalizeString(a)||'').replace(/\s+/g,' ').
     // Theme toggle functionality
     const themeToggle = document.getElementById('theme-toggle');
     const themeIcon = themeToggle ? themeToggle.querySelector('.icon') : null;
-    
-    // Load saved theme preference
+    const THEMES = ['dark','cyberpunk','light'];
+
+    // Load saved theme preference (defaults to dark)
     const savedTheme = localStorage.getItem('theme') || 'dark';
     document.documentElement.setAttribute('data-theme', savedTheme);
     updateThemeIcon(savedTheme);
-    
+
     if (themeToggle) {
       themeToggle.addEventListener('click', () => {
-        const currentTheme = document.documentElement.getAttribute('data-theme');
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+        const idx = THEMES.indexOf(currentTheme);
+        const newTheme = THEMES[(idx + 1) % THEMES.length];
         document.documentElement.setAttribute('data-theme', newTheme);
         localStorage.setItem('theme', newTheme);
         updateThemeIcon(newTheme);
       });
     }
-    
+
     function updateThemeIcon(theme) {
       if (themeIcon) {
-        themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
+        if (theme === 'dark') themeIcon.textContent = '☀️';
+        else if (theme === 'cyberpunk') themeIcon.textContent = '⚡';
+        else themeIcon.textContent = '🌙';
       }
       if (themeToggle) {
-        themeToggle.title = theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre';
+        if (theme === 'dark') themeToggle.title = 'Passer en mode cyberpunk';
+        else if (theme === 'cyberpunk') themeToggle.title = 'Passer en mode clair';
+        else themeToggle.title = 'Passer en mode sombre';
       }
     }
   </script>

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "npm install",
+  "buildCommand": "next build",
   "routes": [
     { "src": "^/$", "dest": "/api/index.js" },
     { "src": "/login$", "dest": "/api/login.js" },

@@ -1,0 +1,18 @@
+name: Wake Up Render
+
+on:
+  schedule:
+    # Les serveurs GitHub utilisent l'heure UTC. 
+    # '*/10 5-22 * * *' = Toutes les 10 min de 5h à 22h UTC
+    # Soit de 6h à 23h en France (heure d'hiver).
+    - cron: '*/10 5-22 * * *'
+  workflow_dispatch:
+
+jobs:
+  ping-job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Réveil de l'application
+        run: |
+          curl -sL https://municipales-limoges-news2026.onrender.com/
+          echo "Ping envoyé avec succès à $(date)"

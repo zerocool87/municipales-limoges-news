@@ -69,3 +69,12 @@ Remarque : GitHub Pages sert seulement le front statique; l'API Node doit être 
 ---
 
 Si vous voulez, je peux aussi ajouter le déploiement sur Heroku / Railway ou remplacer NewsAPI par une solution RSS gratuite.
+
+## Forcer le thème par défaut (ex: cyberpunk) ⚡
+
+Vous pouvez forcer le thème par défaut de l'interface de deux façons :
+
+- Paramètre d'URL (à la volée) : ajoutez `?theme=cyberpunk` (ou `?theme=dark` / `?theme=light`) à l'URL — cela prend la priorité et est mémorisé dans `localStorage` pour les visites suivantes.
+- Variable d'environnement (build/runtime pour Next.js) : définissez `NEXT_PUBLIC_DEFAULT_THEME=cyberpunk` dans vos variables d'environnement (ex : sur Vercel ou dans `.env`) — elle sera injectée côté client et utilisée si aucun paramètre URL ou préférence sauvegardée n'existe.
+
+Pour le fichier statique `public/index.html`, vous pouvez aussi ajouter la meta `<meta name="default-theme" content="cyberpunk" />` dans la balise `head` pour forcer le thème par défaut.
