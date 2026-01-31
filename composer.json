@@ -1,0 +1,5 @@
+{
+    "require-dev": {
+        "spatie/boost-spatie-guidelines": "^1.0"
+    }
+}
