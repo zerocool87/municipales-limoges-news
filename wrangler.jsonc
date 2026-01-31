@@ -1,0 +1,8 @@
+{
+  "name": "municipales-limoges-news",
+  "compatibility_date": "2026-01-31",
+  "main": "src/index.js",
+  "assets": {
+    "directory": "dist"
+  }
+}

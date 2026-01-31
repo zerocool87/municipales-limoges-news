@@ -1,0 +1,27 @@
+image: node:latest
+
+stages:
+  - deploy
+
+deploy_preview:
+  stage: deploy
+  script:
+    - npm install --global vercel
+    - vercel pull --yes --environment=preview --token=tPQocBi7Z1nVc9Y1PbB7T5AR
+    - vercel build --token=tPQocBi7Z1nVc9Y1PbB7T5AR
+    - vercel deploy --prebuilt --token=tPQocBi7Z1nVc9Y1PbB7T5AR> deployment_url.txt
+  only:
+    - merge_requests
+  artifacts:
+    paths:
+      - deployment_url.txt
+
+deploy_production:
+  stage: deploy
+  script:
+    - npm install --global vercel
+    - vercel pull --yes --environment=production --token=tPQocBi7Z1nVc9Y1PbB7T5AR
+    - vercel build --prod --token=tPQocBi7Z1nVc9Y1PbB7T5AR
+    - vercel deploy --prebuilt --prod --token=tPQocBi7Z1nVc9Y1PbB7T5AR
+  only:
+    - main # Ou 'master' selon le nom de votre branche principale
