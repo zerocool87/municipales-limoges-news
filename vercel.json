@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "regions": ["cdg1"],
+  "buildCommand": "next build",
   "routes": [
     { "src": "^/$", "dest": "/api/index.js" },
     { "src": "/login$", "dest": "/api/login.js" },

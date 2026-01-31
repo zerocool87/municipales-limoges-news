@@ -2,23 +2,22 @@
   "name": "municipales-limoges-news",
   "version": "0.1.0",
   "description": "Interface simple qui récupère 10 news du jour sur l'IA",
-  "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
   },
   "dependencies": {
-    "cookie-parser": "^1.4.7",
-    "cors": "^2.8.5",
-    "dotenv": "^16.0.0",
-    "express": "^4.18.2",
-    "express-session": "^1.19.0",
-    "jsonwebtoken": "^9.0.3",
+    "next": "^16.1.6",
     "node-fetch": "^3.3.2",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "rss-parser": "^3.12.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11"
+    "@types/node": "25.1.0",
+    "@types/react": "19.2.10",
+    "typescript": "5.9.3"
   }
 }
