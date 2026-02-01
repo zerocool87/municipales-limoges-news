@@ -10,7 +10,9 @@ const [currentMonth, setCurrentMonth] = React.useState('');
 const [status, setStatus] = React.useState('Chargement des dernières news municipales (Limoges 2026)...');
 const [updated, setUpdated] = React.useState('–');
 const [articleCount, setArticleCount] = React.useState(0);
-const [activeTag, setActiveTag] = React.useState('');
+  // const [filterText, setFilterText] = React.useState('');
+  const [maudetActive, setMaudetActive] = React.useState(false);
+  const [selectedVille, setSelectedVille] = React.useState('');
 // TODO: Ajouter la gestion des filtres et du thème
 // Types pour les articles
 interface Article {
@@ -57,70 +59,32 @@ interface MonthlyArticles {
       seenKeys.add(key);
     }
   }
+  const normalizeText = s => (s || '').toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '');
+
   const filteredArticles = uniqueArticles.filter(a => {
-    if (currentMonth && monthlyArticles[currentMonth]) {
-      return monthlyArticles[currentMonth].some(m => m.url === a.url);
+    // Si on a choisi un mois, n'afficher que les articles de ce mois.
+    // Sinon, n'afficher que les articles des 3 derniers mois.
+    const visibleMonths = currentMonth ? [currentMonth] : (months || []).slice(0, 3);
+    if (visibleMonths.length > 0) {
+      return visibleMonths.some(m => (monthlyArticles[m] || []).some(item => item.url === a.url));
     }
     return true;
   }).filter(a => {
-    // Filtre strict : au moins une ville du département dans les matches (normalisé)
-    const normalize = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    // Filtre Haute-Vienne + election
-    return a.matches &&
-      a.matches.some(m => hauteVienneVilles.some(v => normalize(m) === normalize(v))) &&
-      a.matches.some(m => normalize(m) === 'municipales');
-  }).filter(a => {
-    if (activeTag) {
-      return a.matches && a.matches.some(m => m.toLowerCase() === activeTag.toLowerCase());
+    if (maudetActive) {
+      // Filtre Maudet prioritaire : recherche 'maudet' dans le titre/description (robuste)
+      const text = normalizeText((a.title || '') + ' ' + (a.description || ''));
+      return text.includes('maudet');
     }
-    return true;
+    if (selectedVille) {
+      return Array.isArray(a.matches) && a.matches.some(m => normalizeText(m) === normalizeText(selectedVille));
+    }
+    // Sinon, filtre ville classique (au moins une ville de Haute-Vienne)
+    return Array.isArray(a.matches) && a.matches.some(m => hauteVienneVilles.some(v => normalizeText(m) === normalizeText(v)));
   }).sort((a, b) => {
     const dateA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
     const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
     return dateB - dateA;
   });
-
-  // ThemeToggle component: cycles through dark → cyberpunk → light
-  function ThemeToggle() {
-    const THEMES = ['dark','cyberpunk','light'];
-    const [theme, setTheme] = React.useState('dark');
-
-    // initialize from document/localStorage if available
-    useEffect(() => {
-      try {
-        const current = typeof window !== 'undefined' && (document.documentElement.getAttribute('data-theme') || localStorage.getItem('theme'));
-        if (current && THEMES.includes(current)) setTheme(current);
-      } catch (e) { /* noop */ }
-    }, []);
-
-    // keep in sync if theme is changed elsewhere
-    useEffect(() => {
-      try {
-        const docTheme = document.documentElement.getAttribute('data-theme');
-        if (docTheme && THEMES.includes(docTheme) && docTheme !== theme) setTheme(docTheme);
-      } catch (e) {}
-    }, [theme]);
-
-    const cycle = () => {
-      const idx = THEMES.indexOf(theme);
-      const newTheme = THEMES[(idx + 1) % THEMES.length];
-      setTheme(newTheme);
-      try { document.documentElement.setAttribute('data-theme', newTheme); localStorage.setItem('theme', newTheme); } catch(e){}
-    };
-
-    const icons = { dark: '☀️', cyberpunk: '⚡', light: '🌙' };
-    const icon = icons[theme] || icons.dark;
-    const nextTheme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
-    const titleText = theme === 'dark' ? 'Passer en mode cyberpunk' : theme === 'cyberpunk' ? 'Passer en mode clair' : 'Passer en mode sombre';
-
-    // Use the existing #theme-toggle CSS from public/styles.css (no inline styles)
-    return (
-      <button id="theme-toggle" aria-label={`Changer le thème — prochain: ${nextTheme}`} title={titleText} onClick={cycle}>
-        <span className="icon">{icon}</span>
-        Mode
-      </button>
-    );
-  }
 
   return (
     <>
@@ -137,7 +101,7 @@ interface MonthlyArticles {
         {/* Pagination par mois */}
         <div style={{ margin: '1em 0' }}>
           <button style={{marginRight: '0.5em', background: '#071021', color: '#fff', border: '1px solid #00f0ff', borderRadius: '4px', boxShadow: 'none'}} onClick={() => setCurrentMonth('')}>Tous les mois</button>
-          {months.map(m => (
+          {(months || []).slice(0,3).map(m => (
             <button
               key={m}
               onClick={() => setCurrentMonth(m)}
@@ -147,49 +111,52 @@ interface MonthlyArticles {
             </button>
           ))}
         </div>
-        {/* Filtres par ville (listbox) + filtre Maudet */}
-        <div style={{ margin: '1em 0', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <label htmlFor="ville-select">Filtrer par ville&nbsp;:</label>
-          <select
-            id="ville-select"
-            value={activeTag}
-            onChange={e => {
-              const val = e.target.value;
-              setActiveTag(prev => (prev === val ? '' : val));
-            }}
-            style={{ background: '#071021', color: '#fff', border: '1px solid #00f0ff', borderRadius: '4px', boxShadow: 'none', padding: '0.45rem 0.6rem' }}
-          >
-            <option value="">Toutes les villes</option>
-            {['Limoges', 'Saint-Junien', 'Panazol', 'Couzeix', 'Isle', 'Feytiat', 'Condat-sur-Vienne', 'Le Palais-sur-Vienne'].map(ville => (
-              <option key={ville} value={ville}>{ville}</option>
-            ))}
-          </select>
+        {/* Filtre bouton Maudet + listbox villes */}
+        <div style={{ margin: '1em 0', display: 'flex', alignItems: 'center', gap: '1em' }}>
+          <div>
+            <label htmlFor="ville-select">Ville :</label>
+            <select
+              id="ville-select"
+              value={selectedVille}
+              onChange={e => setSelectedVille(e.target.value)}
+              style={{ marginLeft: '0.5em', background: '#071021', color: '#fff', border: '1px solid #00f0ff', borderRadius: '4px', boxShadow: 'none', padding: '0.4em' }}
+              disabled={maudetActive}
+            >
+              <option value="">Toutes les villes</option>
+              {hauteVienneVilles.sort().map(ville => (
+                <option key={ville} value={ville}>{ville}</option>
+              ))}
+            </select>
+            {selectedVille && !maudetActive && (
+              <button style={{marginLeft: '0.5em', background: '#071021', color: '#fff', border: '1px solid #00f0ff', borderRadius: '4px', boxShadow: 'none'}} onClick={() => setSelectedVille('')}>Réinitialiser</button>
+            )}
+          </div>
           <button
-            onClick={() => setActiveTag(prev => (prev === 'maudet' ? '' : 'maudet'))}
-            aria-pressed={activeTag === 'maudet'}
-            style={{ background: '#071021', color: '#fff', border: activeTag === 'maudet' ? '2px solid #ff2da6' : '2px solid red', borderRadius: '4px', boxShadow: 'none', padding: '0.45rem 0.85rem' }}
+            style={{ background: maudetActive ? '#ff2da6' : '#071021', color: '#fff', border: '2px solid #ff2da6', borderRadius: '4px', boxShadow: 'none', fontWeight: maudetActive ? 'bold' : undefined, padding: '0.4em 1em' }}
+            onClick={() => { setMaudetActive(v => !v); setSelectedVille(''); }}
+            aria-pressed={maudetActive}
           >
-            Filtrer Maudet
+            {maudetActive ? 'Filtre Maudet actif' : 'Filtrer Maudet'}
           </button>
-          {/* Theme toggle component (client-side) */}
-          <ThemeToggle />
-          {activeTag && <button style={{ background: '#071021', color: '#fff', border: '1px solid #00f0ff', borderRadius: '4px', boxShadow: 'none', padding: '0.45rem 0.85rem' }} onClick={() => setActiveTag('')}>Réinitialiser le filtre</button>}
         </div>
         <div id="status">{status}</div>
         <ul id="articles">
-          {filteredArticles.map((a, i) => (
-            <li key={i} className="article" style={a.matches && a.matches.some(m => m.toLowerCase() === 'maudet') ? {border: '2px solid red', borderRadius: '6px', padding: '0.5em'} : {}}>
-              <a className="title" href={a.url} target="_blank" rel="noopener noreferrer">{a.title}</a>
-              <div className="meta">{a.source} — {a.publishedAt ? new Date(a.publishedAt).toLocaleString() : ''}</div>
-              {a.matches && a.matches.length > 0 && (
-                <div className="matches">
-                  {a.matches.map(m => (
-                    <span key={m} className="tag" style={{ fontWeight: m === a.primaryMatch ? 'bold' : undefined }}>{m}</span>
-                  ))}
-                </div>
-              )}
-            </li>
-          ))}
+          {filteredArticles.map((a, i) => {
+            const hasMaudet = normalizeText((a.title || '') + ' ' + (a.description || '')).includes('maudet');
+            return (
+              <li key={i} className="article" style={hasMaudet ? {border: '2px solid red', borderRadius: '6px', padding: '0.5em'} : {}}>
+                <a className="title" href={a.url} target="_blank" rel="noopener noreferrer">{a.title}</a>
+                <div className="meta">{a.source} — {a.publishedAt ? new Date(a.publishedAt).toLocaleString() : ''}</div>
+                {a.matches && a.matches.length > 0 && (
+                  <div className="matches">
+                    {a.matches.map(m => (
+                      <span key={m} className="tag" style={{ fontWeight: m === a.primaryMatch ? 'bold' : undefined }}>{m}</span>
+                    ))}
+                  </div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </main>
     </>
